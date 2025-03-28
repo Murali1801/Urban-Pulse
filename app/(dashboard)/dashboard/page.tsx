@@ -9,6 +9,29 @@ import { AlertItem } from "@/components/alert-item"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { useState, useEffect } from "react"
+
+// Types for the API response
+interface AirQualityData {
+  status: string
+  data: {
+    aqi: number
+    city: {
+      name: string
+      geo: [number, number]
+    }
+    iaqi: {
+      pm25: { v: number }
+      pm10: { v: number }
+      o3: { v: number }
+      no2: { v: number }
+    }
+    time: {
+      s: string
+      iso: string
+    }
+  }
+}
 
 // Sample alert data
 const alerts = [
@@ -36,6 +59,83 @@ const alerts = [
 ]
 
 export default function DashboardPage() {
+  const [vasaiData, setVasaiData] = useState<AirQualityData | null>(null)
+  const [searchedCityData, setSearchedCityData] = useState<AirQualityData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const fetchAirData = async (city: string) => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const response = await fetch(
+        `https://api.waqi.info/feed/${city}/?token=027196b7135cabb95b0ad5f8b501749e0acba471`
+      )
+      if (!response.ok) {
+        throw new Error(`Failed to fetch air quality data for ${city}`)
+      }
+      const data = await response.json()
+      if (data.status === "ok") {
+        setSearchedCityData(data)
+      } else {
+        throw new Error(`No data available for ${city}`)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred while fetching air quality data")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    const fetchVasaiData = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        const response = await fetch(
+          "https://api.waqi.info/feed/india/mumbai/vasai-west/?token=027196b7135cabb95b0ad5f8b501749e0acba471"
+        )
+        if (!response.ok) {
+          throw new Error("Failed to fetch air quality data")
+        }
+        const data = await response.json()
+        if (data.status === "ok") {
+          setVasaiData(data)
+        }
+      } catch (error) {
+        console.error("Error fetching air quality data:", error)
+        setError("Failed to fetch air quality data")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchVasaiData()
+    // Refresh data every 5 minutes
+    const interval = setInterval(fetchVasaiData, 5 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Function to get status text
+  const getStatusText = (aqi: number) => {
+    if (aqi <= 50) return "Good"
+    if (aqi <= 100) return "Moderate"
+    if (aqi <= 150) return "Unhealthy for Sensitive Groups"
+    return "Unhealthy"
+  }
+
+  // Function to get status color
+  const getStatusColor = (aqi: number) => {
+    if (aqi <= 50) return "text-green-400"
+    if (aqi <= 100) return "text-yellow-400"
+    if (aqi <= 150) return "text-orange-400"
+    return "text-red-400"
+  }
+
+  // Get the current air quality data (either searched city or Vasai West)
+  const currentAirData = searchedCityData || vasaiData
+
   return (
     <div className="min-h-screen bg-dark-bg">
       {/* Hero section */}
@@ -60,7 +160,7 @@ export default function DashboardPage() {
             </p>
           </motion.div>
 
-          <CitySearch />
+          <CitySearch onCitySearch={fetchAirData} />
 
           <div className="flex justify-center mt-8">
             <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
@@ -82,16 +182,16 @@ export default function DashboardPage() {
               transition={{ duration: 0.3, delay: 0.1 }}
             >
               <StatCard
-                title="Air Quality Index"
-                value="Good (42)"
+                title={`Air Quality Index - ${currentAirData?.data.city.name || "Loading..."}`}
+                value={currentAirData ? `${getStatusText(currentAirData.data.aqi)} (${currentAirData.data.aqi})` : "Loading..."}
                 icon={<Wind className="h-5 w-5 text-neon-blue" />}
                 trend={{ value: 12, isPositive: true }}
-                className="border-t-4 border-t-neon-blue"
+                className={`border-t-4 border-t-neon-blue ${currentAirData ? getStatusColor(currentAirData.data.aqi) : ""}`}
               >
                 <div className="mt-2 pt-2 border-t border-muted/20">
                   <div className="text-xs text-muted-foreground flex justify-between">
-                    <span>PM2.5: 10 µg/m³</span>
-                    <span>PM10: 22 µg/m³</span>
+                    <span>PM25: {currentAirData ? `${currentAirData.data.iaqi.pm25.v} µg/m³` : "..."}</span>
+                    <span>PM10: {currentAirData ? `${currentAirData.data.iaqi.pm10.v} µg/m³` : "..."}</span>
                   </div>
                 </div>
               </StatCard>
