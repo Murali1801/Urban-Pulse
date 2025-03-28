@@ -50,6 +50,7 @@
     "expo-asset": "latest",
     "expo-file-system": "latest",
     "expo-gl": "latest",
+    "firebase": "^11.5.0",
     "framer-motion": "latest",
     "input-otp": "1.4.1",
     "leaflet": "^1.9.4",

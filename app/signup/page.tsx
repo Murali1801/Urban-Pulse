@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import { auth } from "@/lib/firebase"
 import { 
-  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   signInWithPhoneNumber,
   RecaptchaVerifier,
   GoogleAuthProvider,
@@ -20,24 +20,31 @@ import {
 } from "firebase/auth"
 import Link from "next/link"
 
-export default function LoginPage() {
+export default function SignupPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [phone, setPhone] = useState("")
   const [otp, setOtp] = useState(["", "", "", "", "", ""])
   const [showOtpInput, setShowOtpInput] = useState(false)
   const [authMethod, setAuthMethod] = useState("email")
   const [error, setError] = useState("")
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handleEmailSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError("")
     
+    if (password !== confirmPassword) {
+      setError("Passwords do not match")
+      setIsLoading(false)
+      return
+    }
+    
     try {
-      await signInWithEmailAndPassword(auth, email, password)
+      await createUserWithEmailAndPassword(auth, email, password)
       router.push("/dashboard")
     } catch (error: any) {
       setError(error.message)
@@ -46,7 +53,7 @@ export default function LoginPage() {
     }
   }
 
-  const handlePhoneLogin = async (e: React.FormEvent) => {
+  const handlePhoneSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError("")
@@ -58,7 +65,7 @@ export default function LoginPage() {
       })
       
       const confirmationResult = await signInWithPhoneNumber(auth, phone, appVerifier)
-      ;(window as any).confirmationResult = confirmationResult
+      window.confirmationResult = confirmationResult
       setShowOtpInput(true)
     } catch (error: any) {
       setError(error.message)
@@ -91,7 +98,7 @@ export default function LoginPage() {
     
     try {
       const otpValue = otp.join("")
-      await (window as any).confirmationResult.confirm(otpValue)
+      await window.confirmationResult.confirm(otpValue)
       router.push("/dashboard")
     } catch (error: any) {
       setError(error.message)
@@ -100,7 +107,7 @@ export default function LoginPage() {
     }
   }
 
-  const handleGoogleLogin = async () => {
+  const handleGoogleSignup = async () => {
     setIsLoading(true)
     setError("")
     
@@ -136,7 +143,7 @@ export default function LoginPage() {
               <div className="absolute inset-3 rounded-full bg-gradient-to-r from-neon-blue to-neon-orange opacity-80" />
             </motion.div>
             <h1 className="text-3xl font-bold text-gradient">UrbanPulse</h1>
-            <p className="text-muted-foreground">Smart City Dashboard</p>
+            <p className="text-muted-foreground">Create your account</p>
           </div>
 
           <div className="w-full">
@@ -167,7 +174,7 @@ export default function LoginPage() {
                     </TabsList>
 
                     <TabsContent value="email">
-                      <form onSubmit={handleEmailLogin} className="space-y-4">
+                      <form onSubmit={handleEmailSignup} className="space-y-4">
                         <div className="space-y-2">
                           <Label htmlFor="email">Email</Label>
                           <Input
@@ -185,9 +192,21 @@ export default function LoginPage() {
                           <Input
                             id="password"
                             type="password"
-                            placeholder="Enter your password"
+                            placeholder="Create a password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
+                            required
+                            className="bg-muted/50"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="confirmPassword">Confirm Password</Label>
+                          <Input
+                            id="confirmPassword"
+                            type="password"
+                            placeholder="Confirm your password"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
                             required
                             className="bg-muted/50"
                           />
@@ -203,13 +222,13 @@ export default function LoginPage() {
                           ) : (
                             <Mail className="mr-2 h-4 w-4" />
                           )}
-                          Login with Email
+                          Sign up with Email
                         </Button>
                       </form>
                     </TabsContent>
 
                     <TabsContent value="phone">
-                      <form onSubmit={handlePhoneLogin} className="space-y-4">
+                      <form onSubmit={handlePhoneSignup} className="space-y-4">
                         <div className="space-y-2">
                           <Label htmlFor="phone">Phone Number</Label>
                           <Input
@@ -234,7 +253,7 @@ export default function LoginPage() {
                           ) : (
                             <Phone className="mr-2 h-4 w-4" />
                           )}
-                          Login with Phone
+                          Sign up with Phone
                         </Button>
                       </form>
                     </TabsContent>
@@ -249,7 +268,7 @@ export default function LoginPage() {
                     </div>
                   </div>
 
-                  <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={isLoading}>
+                  <Button variant="outline" className="w-full" onClick={handleGoogleSignup} disabled={isLoading}>
                     {isLoading ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
@@ -277,9 +296,9 @@ export default function LoginPage() {
 
                   <div className="mt-4 text-center">
                     <p className="text-sm text-muted-foreground">
-                      Don't have an account?{" "}
-                      <Link href="/signup" className="text-neon-blue hover:text-neon-orange">
-                        Sign up
+                      Already have an account?{" "}
+                      <Link href="/login" className="text-neon-blue hover:text-neon-orange">
+                        Sign in
                       </Link>
                     </p>
                   </div>
@@ -334,4 +353,4 @@ export default function LoginPage() {
       </div>
     </div>
   )
-}
+} 
