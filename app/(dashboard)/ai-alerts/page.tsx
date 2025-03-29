@@ -336,10 +336,10 @@ export default function AIAlertsPage() {
         console.warn("API fetch failed, using local prediction:", fetchError);
         setPredictionResult(localPrediction);
       }
-      
-      // Simulate anomaly detection
+
+    // Simulate anomaly detection
       const hasAnomaly = Math.random() > 0.7;
-      if (hasAnomaly) {
+    if (hasAnomaly) {
         setShowAnomalyAlert(true);
         setActiveAnomalies((prev) => prev + 1);
       }
@@ -506,7 +506,7 @@ export default function AIAlertsPage() {
                           className="bg-muted/30"
                         />
                       </div>
-                    </div>
+                      </div>
                     
                     {predictionResult !== null && (
                       <div className="my-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
@@ -514,7 +514,7 @@ export default function AIAlertsPage() {
                         <div className="text-xl">PM2.5: {predictionResult.toFixed(2)} μg/m³</div>
                         <div className="mt-2 text-xs text-green-400/70">
                           This prediction is based on the parameters you provided above.
-                        </div>
+                    </div>
                       </div>
                     )}
                     

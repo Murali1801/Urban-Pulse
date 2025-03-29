@@ -166,31 +166,6 @@ interface WaterLevelsData {
   lastUpdated: string
 }
 
-// Sample alert data
-const alerts = [
-  {
-    id: 1,
-    title: "Flooding Alert",
-    message: "Potential flooding in downtown area due to heavy rainfall.",
-    time: "10 minutes ago",
-    level: "critical" as const,
-  },
-  {
-    id: 2,
-    title: "Traffic Congestion",
-    message: "Major traffic jam on Highway 101, expect delays of 25+ minutes.",
-    time: "25 minutes ago",
-    level: "warning" as const,
-  },
-  {
-    id: 3,
-    title: "Air Quality Update",
-    message: "Air quality has improved by 15% in the central district.",
-    time: "1 hour ago",
-    level: "info" as const,
-  },
-]
-
 export default function DashboardPage() {
   const [airQualityData, setAirQualityData] = useState<NormalizedAirQualityData | null>(null)
   const [trafficData, setTrafficData] = useState<TrafficData | null>(null)
@@ -202,6 +177,23 @@ export default function DashboardPage() {
     lat: 19.40,
     lon: 72.82
   })
+  // Dynamic alerts based on real-time data
+  const [alerts, setAlerts] = useState([
+    {
+      id: 2,
+      title: "Traffic Congestion",
+      message: "Major traffic jam on Highway 101, expect delays of 25+ minutes.",
+      time: "25 minutes ago",
+      level: "warning" as const,
+    },
+    {
+      id: 3,
+      title: "Air Quality Update",
+      message: "Air quality has improved by 15% in the central district.",
+      time: "1 hour ago",
+      level: "info" as const,
+    },
+  ])
 
   // Function to fetch city coordinates from Nominatim API
   const fetchCityCoordinates = async (city: string) => {
@@ -377,6 +369,46 @@ export default function DashboardPage() {
     }
   }
 
+  // Function to update alerts based on fetched data
+  const updateAlerts = () => {
+    const newAlerts = [];
+    
+    // Add traffic alert if data is available
+    if (trafficData) {
+      const trafficLevel = trafficData.congestionLevel === "Heavy" ? "warning" : 
+                          trafficData.congestionLevel === "Moderate" ? "warning" : "info";
+      
+      newAlerts.push({
+        id: 1,
+        title: `Traffic ${trafficData.congestionLevel} in ${selectedCity.name}`,
+        message: `Average speed is ${trafficData.averageSpeed} mph with approximately ${trafficData.delay} minutes of delay.`,
+        time: trafficData.lastUpdated,
+        level: trafficLevel as "warning" | "info",
+      });
+    }
+    
+    // Add air quality alert if data is available
+    if (airQualityData) {
+      const aqiStatus = airQualityData.aqi <= 40 ? "Good" : 
+                      airQualityData.aqi <= 60 ? "Moderate" : 
+                      airQualityData.aqi <= 80 ? "Poor" : "Very Poor";
+      
+      const aqiLevel = airQualityData.aqi <= 40 ? "info" : 
+                     airQualityData.aqi <= 60 ? "info" : 
+                     airQualityData.aqi <= 80 ? "warning" : "critical";
+      
+      newAlerts.push({
+        id: 2,
+        title: `Air Quality: ${aqiStatus}`,
+        message: `Current AQI is ${airQualityData.aqi} with PM2.5 at ${airQualityData.pm25} µg/m³ in ${selectedCity.name}.`,
+        time: new Date(airQualityData.time).toLocaleTimeString(),
+        level: aqiLevel as "info" | "warning" | "critical",
+      });
+    }
+    
+    setAlerts(newAlerts);
+  }
+
   const fetchAirData = async (city: string) => {
     try {
       setLoading(true)
@@ -417,6 +449,9 @@ export default function DashboardPage() {
       
       const waterLevels = await fetchWaterLevelsData(coordinates.lat, coordinates.lon)
       if (waterLevels) setWaterLevelsData(waterLevels)
+      
+      // After all data is fetched, update alerts
+      updateAlerts();
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred while fetching data")
     } finally {
@@ -445,6 +480,13 @@ export default function DashboardPage() {
     const interval = setInterval(() => fetchAirData(selectedCity.name), 5 * 60 * 1000)
     return () => clearInterval(interval)
   }, [])
+
+  // Update alerts when any data changes
+  useEffect(() => {
+    if (!loading && (airQualityData || trafficData)) {
+      updateAlerts();
+    }
+  }, [airQualityData, trafficData, waterLevelsData]);
 
   // Function to get status text
   const getStatusText = (aqi: number) => {
