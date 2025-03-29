@@ -1,7 +1,7 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Wind, Droplets, Car, Zap, AlertCircle } from "lucide-react"
+import { Wind, Droplets, Car, AlertCircle } from "lucide-react"
 import { GlobeVisualization } from "@/components/globe-visualization"
 import { CitySearch } from "@/components/city-search"
 import { StatCard } from "@/components/stat-card"
@@ -33,6 +33,139 @@ interface AirQualityData {
   }
 }
 
+// New Open-Meteo Air Quality API interface
+interface OpenMeteoAirQualityData {
+  latitude: number
+  longitude: number
+  generationtime_ms: number
+  utc_offset_seconds: number
+  timezone: string
+  timezone_abbreviation: string
+  elevation: number
+  current_units: {
+    time: string
+    interval: string
+    ozone: string
+    sulphur_dioxide: string
+    nitrogen_dioxide: string
+    carbon_monoxide: string
+    european_aqi: string
+    us_aqi: string
+    pm10: string
+    pm2_5: string
+    aerosol_optical_depth: string
+    dust: string
+    uv_index: string
+    uv_index_clear_sky: string
+    ammonia: string
+    alder_pollen: string
+    birch_pollen: string
+    grass_pollen: string
+    mugwort_pollen: string
+    olive_pollen: string
+    ragweed_pollen: string
+  }
+  current: {
+    time: string
+    interval: number
+    ozone: number
+    sulphur_dioxide: number
+    nitrogen_dioxide: number
+    carbon_monoxide: number
+    european_aqi: number
+    us_aqi: number
+    pm10: number
+    pm2_5: number
+    aerosol_optical_depth: number
+    dust: number
+    uv_index: number
+    uv_index_clear_sky: number
+    ammonia: number
+    alder_pollen: number
+    birch_pollen: number
+    grass_pollen: number
+    mugwort_pollen: number
+    olive_pollen: number
+    ragweed_pollen: number
+  }
+  hourly_units: {
+    time: string
+    pm10: string
+    pm2_5: string
+    carbon_monoxide: string
+    carbon_dioxide: string
+    nitrogen_dioxide: string
+    sulphur_dioxide: string
+    ozone: string
+    aerosol_optical_depth: string
+    dust: string
+    uv_index: string
+    uv_index_clear_sky: string
+    ammonia: string
+    methane: string
+    alder_pollen: string
+    birch_pollen: string
+    grass_pollen: string
+    mugwort_pollen: string
+    olive_pollen: string
+    ragweed_pollen: string
+  }
+  hourly: {
+    time: string[]
+    pm10: number[]
+    pm2_5: number[]
+    carbon_monoxide: number[]
+    carbon_dioxide: number[]
+    nitrogen_dioxide: number[]
+    sulphur_dioxide: number[]
+    ozone: number[]
+    aerosol_optical_depth: number[]
+    dust: number[]
+    uv_index: number[]
+    uv_index_clear_sky: number[]
+    ammonia: number[]
+    methane: number[]
+    alder_pollen: number[]
+    birch_pollen: number[]
+    grass_pollen: number[]
+    mugwort_pollen: number[]
+    olive_pollen: number[]
+    ragweed_pollen: number[]
+  }
+}
+
+// Local interface to normalize the data for the UI components
+interface NormalizedAirQualityData {
+  status: string
+  cityName: string
+  coordinates: [number, number]
+  aqi: number
+  pm25: number
+  pm10: number
+  ozone: number
+  no2: number
+  time: string
+  openMeteoData: OpenMeteoAirQualityData | null
+}
+
+// Traffic data interface
+interface TrafficData {
+  status: string
+  congestionLevel: string
+  averageSpeed: number
+  delay: number
+  lastUpdated: string
+}
+
+// Water data interface
+interface WaterLevelsData {
+  status: string
+  capacity: number
+  phLevel: number
+  supplyStatus: string
+  lastUpdated: string
+}
+
 // Sample alert data
 const alerts = [
   {
@@ -59,82 +192,291 @@ const alerts = [
 ]
 
 export default function DashboardPage() {
-  const [vasaiData, setVasaiData] = useState<AirQualityData | null>(null)
-  const [searchedCityData, setSearchedCityData] = useState<AirQualityData | null>(null)
+  const [airQualityData, setAirQualityData] = useState<NormalizedAirQualityData | null>(null)
+  const [trafficData, setTrafficData] = useState<TrafficData | null>(null)
+  const [waterLevelsData, setWaterLevelsData] = useState<WaterLevelsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [selectedCity, setSelectedCity] = useState({
+    name: "vasai-west",
+    lat: 19.40,
+    lon: 72.82
+  })
+
+  // Function to fetch city coordinates from Nominatim API
+  const fetchCityCoordinates = async (city: string) => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city)}&format=json&limit=1`
+      )
+      const data = await response.json()
+      
+      if (data && data.length > 0) {
+        return { 
+          name: city,
+          lat: parseFloat(data[0].lat), 
+          lon: parseFloat(data[0].lon)
+        }
+      }
+      return null
+    } catch (error) {
+      console.error("Error fetching city coordinates:", error)
+      return null
+    }
+  }
+
+  // Function to fetch air quality data using Open-Meteo API
+  const fetchOpenMeteoAirQuality = async (lat: number, lon: number) => {
+    try {
+      const url = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=pm10,pm2_5,carbon_monoxide,carbon_dioxide,nitrogen_dioxide,sulphur_dioxide,ozone,aerosol_optical_depth,dust,uv_index,uv_index_clear_sky,ammonia,methane,alder_pollen,birch_pollen,grass_pollen,mugwort_pollen,olive_pollen,ragweed_pollen&current=ozone,sulphur_dioxide,nitrogen_dioxide,carbon_monoxide,european_aqi,us_aqi,pm10,pm2_5,aerosol_optical_depth,dust,uv_index,uv_index_clear_sky,ammonia,alder_pollen,birch_pollen,grass_pollen,mugwort_pollen,olive_pollen,ragweed_pollen`;
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch air quality data for coordinates ${lat},${lon}`);
+      }
+      
+      return await response.json() as OpenMeteoAirQualityData;
+    } catch (error) {
+      console.error("Error fetching air quality data:", error);
+      throw error;
+    }
+  }
+
+  // Function to fetch traffic data based on coordinates
+  const fetchTrafficData = async (lat: number, lon: number, cityName: string) => {
+    try {
+      // This is a simulated API call as there's no free traffic API available
+      // In a real application, you would call an actual traffic API here
+      
+      // Simulate network request
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // Generate somewhat realistic traffic data based on city
+      const hour = new Date().getHours()
+      const isRushHour = (hour >= 7 && hour <= 9) || (hour >= 16 && hour <= 19)
+      const isWeekend = [0, 6].includes(new Date().getDay())
+      
+      // Simulate different congestion levels for different cities
+      const citySize = cityName.toLowerCase().includes("mumbai") || 
+                       cityName.toLowerCase().includes("delhi") ||
+                       cityName.toLowerCase().includes("bangalore") ? "big" : "small"
+      
+      let congestionLevel, averageSpeed, delay
+      
+      if (citySize === "big") {
+        if (isRushHour && !isWeekend) {
+          congestionLevel = "Heavy"
+          averageSpeed = Math.floor(Math.random() * 15) + 10 // 10-25 mph
+          delay = Math.floor(Math.random() * 30) + 20 // 20-50 min
+        } else if (isWeekend) {
+          congestionLevel = "Moderate"
+          averageSpeed = Math.floor(Math.random() * 20) + 25 // 25-45 mph
+          delay = Math.floor(Math.random() * 15) + 5 // 5-20 min
+        } else {
+          congestionLevel = "Moderate"
+          averageSpeed = Math.floor(Math.random() * 15) + 20 // 20-35 mph
+          delay = Math.floor(Math.random() * 10) + 10 // 10-20 min
+        }
+      } else {
+        if (isRushHour && !isWeekend) {
+          congestionLevel = "Moderate"
+          averageSpeed = Math.floor(Math.random() * 20) + 20 // 20-40 mph
+          delay = Math.floor(Math.random() * 15) + 5 // 5-20 min
+        } else {
+          congestionLevel = "Light"
+          averageSpeed = Math.floor(Math.random() * 20) + 35 // 35-55 mph
+          delay = Math.floor(Math.random() * 5) + 1 // 1-6 min
+        }
+      }
+      
+      return {
+        status: "success",
+        congestionLevel,
+        averageSpeed,
+        delay,
+        lastUpdated: "Just now"
+      }
+    } catch (error) {
+      console.error("Error fetching traffic data:", error)
+      return null
+    }
+  }
+
+  // Function to fetch water levels data based on coordinates
+  const fetchWaterLevelsData = async (lat: number, lon: number) => {
+    try {
+      // This is a simulated API call as there's no free sea level API available
+      // In a real application, you would call an actual sea levels API here
+      
+      // Simulate network request
+      await new Promise(resolve => setTimeout(resolve, 700))
+      
+      // Use the coordinates to somewhat realistically simulate sea level data
+      // For example, coastal cities might have different tidal patterns
+      const isCoastal = Math.abs(lat) < 30 || Math.abs(lon) < 30
+      
+      const month = new Date().getMonth()
+      const hour = new Date().getHours()
+      
+      // Simulate tidal patterns (high tide around 6AM/6PM, low tide around 12AM/12PM)
+      const isTidalChange = (hour >= 5 && hour <= 7) || (hour >= 17 && hour <= 19) || 
+                           (hour >= 11 && hour <= 13) || (hour >= 23 || hour <= 1)
+      
+      let capacity, supplyStatus
+      
+      // Calculate tide level (percentage of normal)
+      if (hour >= 5 && hour <= 7) {
+        // Morning high tide coming in
+        capacity = Math.floor(Math.random() * 15) + 105 // 105-120%
+        supplyStatus = "Rising"
+      } else if (hour >= 8 && hour <= 10) {
+        // After morning high tide
+        capacity = Math.floor(Math.random() * 10) + 100 // 100-110%
+        supplyStatus = "High"
+      } else if (hour >= 11 && hour <= 13) {
+        // Midday low tide coming in
+        capacity = Math.floor(Math.random() * 15) + 75 // 75-90%
+        supplyStatus = "Falling"
+      } else if (hour >= 14 && hour <= 16) {
+        // Afternoon low
+        capacity = Math.floor(Math.random() * 10) + 80 // 80-90%
+        supplyStatus = "Low"
+      } else if (hour >= 17 && hour <= 19) {
+        // Evening high tide coming in
+        capacity = Math.floor(Math.random() * 15) + 105 // 105-120%
+        supplyStatus = "Rising"
+      } else if (hour >= 20 && hour <= 22) {
+        // After evening high tide
+        capacity = Math.floor(Math.random() * 10) + 100 // 100-110%
+        supplyStatus = "High"
+      } else {
+        // Night low tide
+        capacity = Math.floor(Math.random() * 15) + 75 // 75-90%
+        supplyStatus = "Falling"
+      }
+      
+      // Coastal cities have more dramatic tides
+      if (isCoastal) {
+        capacity = capacity > 100 ? capacity + 10 : capacity - 10;
+      }
+      
+      // pH levels typically range from 7.8 to 8.4 for seawater
+      const phLevel = parseFloat((Math.random() * 0.6 + 7.8).toFixed(1))
+      
+      return {
+        status: "success",
+        capacity,
+        phLevel,
+        supplyStatus,
+        lastUpdated: "Just now"
+      }
+    } catch (error) {
+      console.error("Error fetching sea levels data:", error)
+      return null
+    }
+  }
 
   const fetchAirData = async (city: string) => {
     try {
       setLoading(true)
       setError(null)
+      
+      // First, get coordinates for the city
+      const coordinates = await fetchCityCoordinates(city)
+      if (!coordinates) {
+        throw new Error(`Could not find coordinates for ${city}`)
+      }
+      
+      setSelectedCity({
+        name: city,
+        lat: coordinates.lat,
+        lon: coordinates.lon
+      })
 
-      const response = await fetch(
-        `https://api.waqi.info/feed/${city}/?token=027196b7135cabb95b0ad5f8b501749e0acba471`
-      )
-      if (!response.ok) {
-        throw new Error(`Failed to fetch air quality data for ${city}`)
-      }
-      const data = await response.json()
-      if (data.status === "ok") {
-        setSearchedCityData(data)
-      } else {
-        throw new Error(`No data available for ${city}`)
-      }
+      // Fetch air quality data from Open-Meteo API
+      const airQualityData = await fetchOpenMeteoAirQuality(coordinates.lat, coordinates.lon)
+      
+      // Normalize the data
+      setAirQualityData({
+        status: "success",
+        cityName: city,
+        coordinates: [coordinates.lat, coordinates.lon],
+        aqi: airQualityData.current.european_aqi,
+        pm25: airQualityData.current.pm2_5,
+        pm10: airQualityData.current.pm10,
+        ozone: airQualityData.current.ozone,
+        no2: airQualityData.current.nitrogen_dioxide,
+        time: airQualityData.current.time,
+        openMeteoData: airQualityData
+      })
+      
+      // Fetch additional data
+      const traffic = await fetchTrafficData(coordinates.lat, coordinates.lon, city)
+      if (traffic) setTrafficData(traffic)
+      
+      const waterLevels = await fetchWaterLevelsData(coordinates.lat, coordinates.lon)
+      if (waterLevels) setWaterLevelsData(waterLevels)
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred while fetching air quality data")
+      setError(err instanceof Error ? err.message : "An error occurred while fetching data")
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    const fetchVasaiData = async () => {
+    const fetchDefaultData = async () => {
       try {
         setLoading(true)
         setError(null)
-        const response = await fetch(
-          "https://api.waqi.info/feed/india/mumbai/vasai-west/?token=027196b7135cabb95b0ad5f8b501749e0acba471"
-        )
-        if (!response.ok) {
-          throw new Error("Failed to fetch air quality data")
-        }
-        const data = await response.json()
-        if (data.status === "ok") {
-          setVasaiData(data)
-        }
+        
+        // Fetch data for default location (Vasai West)
+        await fetchAirData("vasai-west")
       } catch (error) {
-        console.error("Error fetching air quality data:", error)
-        setError("Failed to fetch air quality data")
+        console.error("Error fetching default data:", error)
+        setError("Failed to fetch data")
       } finally {
         setLoading(false)
       }
     }
 
-    fetchVasaiData()
+    fetchDefaultData()
     // Refresh data every 5 minutes
-    const interval = setInterval(fetchVasaiData, 5 * 60 * 1000)
+    const interval = setInterval(() => fetchAirData(selectedCity.name), 5 * 60 * 1000)
     return () => clearInterval(interval)
   }, [])
 
   // Function to get status text
   const getStatusText = (aqi: number) => {
-    if (aqi <= 50) return "Good"
-    if (aqi <= 100) return "Moderate"
-    if (aqi <= 150) return "Unhealthy for Sensitive Groups"
-    return "Unhealthy"
+    if (aqi <= 20) return "Very Good"
+    if (aqi <= 40) return "Good"
+    if (aqi <= 60) return "Moderate"
+    if (aqi <= 80) return "Poor"
+    return "Very Poor"
   }
 
   // Function to get status color
   const getStatusColor = (aqi: number) => {
-    if (aqi <= 50) return "text-green-400"
-    if (aqi <= 100) return "text-yellow-400"
-    if (aqi <= 150) return "text-orange-400"
+    if (aqi <= 20) return "text-green-400"
+    if (aqi <= 40) return "text-green-400"
+    if (aqi <= 60) return "text-yellow-400"
+    if (aqi <= 80) return "text-orange-400"
     return "text-red-400"
   }
-
-  // Get the current air quality data (either searched city or Vasai West)
-  const currentAirData = searchedCityData || vasaiData
+  
+  // Function to get traffic status color
+  const getTrafficStatusColor = (congestionLevel: string) => {
+    if (congestionLevel === "Light") return "text-green-400"
+    if (congestionLevel === "Moderate") return "text-yellow-400"
+    return "text-red-400"
+  }
+  
+  // Function to get water supply status color
+  const getWaterStatusColor = (supplyStatus: string) => {
+    if (supplyStatus === "High" || supplyStatus === "Rising") return "text-blue-400"
+    if (supplyStatus === "Low" || supplyStatus === "Falling") return "text-amber-400"
+    return "text-green-400"
+  }
 
   return (
     <div className="min-h-screen bg-dark-bg">
@@ -155,7 +497,7 @@ export default function DashboardPage() {
               Making Cities Smarter with Real-Time Data
             </h1>
             <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Monitor air quality, traffic, water levels, and energy consumption in real-time. UrbanPulse provides city
+              Monitor air quality, traffic, and sea levels in real-time. UrbanPulse provides city
               administrators with the data they need to make informed decisions.
             </p>
           </motion.div>
@@ -175,23 +517,23 @@ export default function DashboardPage() {
       {/* Stats section */}
       <section className="py-8">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: 0.1 }}
             >
               <StatCard
-                title={`Air Quality Index - ${currentAirData?.data.city.name || "Loading..."}`}
-                value={currentAirData ? `${getStatusText(currentAirData.data.aqi)} (${currentAirData.data.aqi})` : "Loading..."}
+                title={`Air Quality Index - ${selectedCity.name}`}
+                value={airQualityData ? `${getStatusText(airQualityData.aqi)} (${airQualityData.aqi})` : "Loading..."}
                 icon={<Wind className="h-5 w-5 text-neon-blue" />}
                 trend={{ value: 12, isPositive: true }}
-                className={`border-t-4 border-t-neon-blue ${currentAirData ? getStatusColor(currentAirData.data.aqi) : ""}`}
+                className={`border-t-4 border-t-neon-blue ${airQualityData ? getStatusColor(airQualityData.aqi) : ""}`}
               >
                 <div className="mt-2 pt-2 border-t border-muted/20">
                   <div className="text-xs text-muted-foreground flex justify-between">
-                    <span>PM25: {currentAirData ? `${currentAirData.data.iaqi.pm25.v} µg/m³` : "..."}</span>
-                    <span>PM10: {currentAirData ? `${currentAirData.data.iaqi.pm10.v} µg/m³` : "..."}</span>
+                    <span>PM2.5: {airQualityData ? `${airQualityData.pm25} µg/m³` : "..."}</span>
+                    <span>PM10: {airQualityData ? `${airQualityData.pm10} µg/m³` : "..."}</span>
                   </div>
                 </div>
               </StatCard>
@@ -204,15 +546,15 @@ export default function DashboardPage() {
             >
               <StatCard
                 title="Traffic Congestion"
-                value="Moderate"
+                value={trafficData ? trafficData.congestionLevel : "Loading..."}
                 icon={<Car className="h-5 w-5 text-neon-orange" />}
-                trend={{ value: 8, isPositive: false }}
-                className="border-t-4 border-t-neon-orange"
+                trend={{ value: trafficData ? trafficData.delay : 0, isPositive: false }}
+                className={`border-t-4 border-t-neon-orange ${trafficData ? getTrafficStatusColor(trafficData.congestionLevel) : ""}`}
               >
                 <div className="mt-2 pt-2 border-t border-muted/20">
                   <div className="text-xs text-muted-foreground flex justify-between">
-                    <span>Avg. Speed: 32 mph</span>
-                    <span>Delay: +15 min</span>
+                    <span>Avg. Speed: {trafficData ? `${trafficData.averageSpeed} mph` : "..."}</span>
+                    <span>Delay: {trafficData ? `+${trafficData.delay} min` : "..."}</span>
                   </div>
                 </div>
               </StatCard>
@@ -224,37 +566,16 @@ export default function DashboardPage() {
               transition={{ duration: 0.3, delay: 0.3 }}
             >
               <StatCard
-                title="Water Reservoirs"
-                value="78% Capacity"
+                title="Sea Levels"
+                value={waterLevelsData ? `${(waterLevelsData.capacity - 100).toFixed(1)}% ${waterLevelsData.capacity > 100 ? 'Above' : 'Below'} Normal` : "Loading..."}
                 icon={<Droplets className="h-5 w-5 text-neon-blue" />}
-                trend={{ value: 2, isPositive: true }}
-                className="border-t-4 border-t-neon-blue"
+                trend={{ value: 2, isPositive: waterLevelsData ? waterLevelsData.capacity > 100 : true }}
+                className={`border-t-4 border-t-neon-blue ${waterLevelsData ? getWaterStatusColor(waterLevelsData.supplyStatus) : ""}`}
               >
                 <div className="mt-2 pt-2 border-t border-muted/20">
                   <div className="text-xs text-muted-foreground flex justify-between">
-                    <span>pH Level: 7.2</span>
-                    <span>Supply: Normal</span>
-                  </div>
-                </div>
-              </StatCard>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: 0.4 }}
-            >
-              <StatCard
-                title="Energy Consumption"
-                value="247 MW"
-                icon={<Zap className="h-5 w-5 text-neon-orange" />}
-                trend={{ value: 5, isPositive: false }}
-                className="border-t-4 border-t-neon-orange"
-              >
-                <div className="mt-2 pt-2 border-t border-muted/20">
-                  <div className="text-xs text-muted-foreground flex justify-between">
-                    <span>Renewable: 35%</span>
-                    <span>Grid Load: High</span>
+                    <span>pH Level: {waterLevelsData ? waterLevelsData.phLevel : "..."}</span>
+                    <span>Tide: {waterLevelsData ? waterLevelsData.supplyStatus : "..."}</span>
                   </div>
                 </div>
               </StatCard>
@@ -316,4 +637,3 @@ export default function DashboardPage() {
     </div>
   )
 }
-

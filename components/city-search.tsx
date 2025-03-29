@@ -14,8 +14,9 @@ interface CitySearchProps {
 
 interface CitySuggestion {
   name: string;
-  country: string;
-  aqi: number;
+  display_name: string;
+  lat: number;
+  lon: number;
 }
 
 export function CitySearch({ onCitySearch }: CitySearchProps) {
@@ -24,22 +25,6 @@ export function CitySearch({ onCitySearch }: CitySearchProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const searchRef = useRef<HTMLDivElement>(null)
-
-  // Function to get status color based on AQI
-  const getStatusColor = (aqi: number) => {
-    if (aqi <= 50) return "bg-green-500/20 text-green-400"
-    if (aqi <= 100) return "bg-yellow-500/20 text-yellow-400"
-    if (aqi <= 150) return "bg-orange-500/20 text-orange-400"
-    return "bg-red-500/20 text-red-400"
-  }
-
-  // Function to get status text based on AQI
-  const getStatusText = (aqi: number) => {
-    if (aqi <= 50) return "Good"
-    if (aqi <= 100) return "Moderate"
-    if (aqi <= 150) return "Unhealthy"
-    return "Very Unhealthy"
-  }
 
   // Fetch city suggestions when query changes
   useEffect(() => {
@@ -53,19 +38,19 @@ export function CitySearch({ onCitySearch }: CitySearchProps) {
         setLoading(true)
         setError(null)
         const response = await fetch(
-          `https://api.waqi.info/search/?token=027196b7135cabb95b0ad5f8b501749e0acba471&keyword=${query}`
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1&featuretype=city`
         )
         if (!response.ok) {
           throw new Error("Failed to fetch city suggestions")
         }
         const data = await response.json()
-        if (data.status === "ok") {
-          setSuggestions(data.data.map((city: any) => ({
-            name: city.station.name,
-            country: city.station.country,
-            aqi: city.aqi
-          })))
-        }
+        
+        setSuggestions(data.map((place: any) => ({
+          name: place.name,
+          display_name: place.display_name,
+          lat: parseFloat(place.lat),
+          lon: parseFloat(place.lon)
+        })))
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to fetch suggestions")
       } finally {
@@ -153,11 +138,11 @@ export function CitySearch({ onCitySearch }: CitySearchProps) {
                     <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
                     <div className="text-left">
                       <div className="font-medium text-sm">{city.name}</div>
-                      <div className="text-xs text-muted-foreground">{city.country}</div>
+                      <div className="text-xs text-muted-foreground truncate max-w-xs">{city.display_name}</div>
                     </div>
                   </div>
-                  <Badge className={getStatusColor(city.aqi)}>
-                    {getStatusText(city.aqi)}
+                  <Badge className="bg-neon-blue/20 text-neon-blue">
+                    {city.lat.toFixed(2)}, {city.lon.toFixed(2)}
                   </Badge>
                 </button>
               ))}

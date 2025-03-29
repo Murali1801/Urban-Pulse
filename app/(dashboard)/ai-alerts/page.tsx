@@ -20,6 +20,8 @@ import {
   ArrowUp,
   ArrowDown,
   Clock,
+  Search,
+  MapPin,
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -38,6 +40,63 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+
+// Interface for air quality API response
+interface AirQualityData {
+  latitude: number
+  longitude: number
+  current: {
+    time: string
+    interval: number
+    ozone: number
+    sulphur_dioxide: number
+    nitrogen_dioxide: number
+    carbon_monoxide: number
+    european_aqi: number
+    us_aqi: number
+    pm10: number
+    pm2_5: number
+    aerosol_optical_depth: number
+    dust: number
+    uv_index: number
+    uv_index_clear_sky: number
+    ammonia: number
+    alder_pollen: number
+    birch_pollen: number
+    grass_pollen: number
+    mugwort_pollen: number
+    olive_pollen: number
+    ragweed_pollen: number
+  }
+  hourly: {
+    time: string[]
+    pm10: number[]
+    pm2_5: number[]
+    carbon_monoxide: number[]
+    carbon_dioxide: number[]
+    nitrogen_dioxide: number[]
+    sulphur_dioxide: number[]
+    ozone: number[]
+    aerosol_optical_depth: number[]
+    dust: number[]
+    uv_index: number[]
+    uv_index_clear_sky: number[]
+    ammonia: number[]
+    methane: number[]
+    alder_pollen: number[]
+    birch_pollen: number[]
+    grass_pollen: number[]
+    mugwort_pollen: number[]
+    olive_pollen: number[]
+    ragweed_pollen: number[]
+  }
+  hourly_units: {
+    [key: string]: string
+  }
+  current_units: {
+    [key: string]: string
+  }
+}
 
 // Sample air quality data
 const airQualityData = {
@@ -117,6 +176,79 @@ export default function AIAlertsPage() {
     waterTemperature: marineWeatherData.waterTemperature,
     humidity: marineWeatherData.humidity,
   })
+  
+  // New states for city search and air quality data
+  const [cityInput, setCityInput] = useState("")
+  const [selectedCity, setSelectedCity] = useState({ name: "Berlin", lat: 52.52, lon: 13.41 })
+  const [airQualityApiData, setAirQualityApiData] = useState<AirQualityData | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+
+  // Function to fetch coordinates from city name using Nominatim API
+  const fetchCityCoordinates = async (cityName: string) => {
+    try {
+      const response = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cityName)}&format=json&limit=1`)
+      const data = await response.json()
+      
+      if (data && data.length > 0) {
+        return { 
+          name: cityName,
+          lat: parseFloat(data[0].lat), 
+          lon: parseFloat(data[0].lon)
+        }
+      }
+      
+      throw new Error("City not found")
+    } catch (error) {
+      console.error("Error fetching city coordinates:", error)
+      return null
+    }
+  }
+
+  // Function to fetch air quality data from Open-Meteo API
+  const fetchAirQualityData = async (lat: number, lon: number) => {
+    setIsLoading(true)
+    try {
+      const apiUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=pm10,pm2_5,carbon_monoxide,carbon_dioxide,nitrogen_dioxide,sulphur_dioxide,ozone,aerosol_optical_depth,dust,uv_index,uv_index_clear_sky,ammonia,methane,alder_pollen,birch_pollen,grass_pollen,mugwort_pollen,olive_pollen,ragweed_pollen&current=ozone,sulphur_dioxide,nitrogen_dioxide,carbon_monoxide,european_aqi,us_aqi,pm10,pm2_5,aerosol_optical_depth,dust,uv_index,uv_index_clear_sky,ammonia,alder_pollen,birch_pollen,grass_pollen,mugwort_pollen,olive_pollen,ragweed_pollen`
+      
+      const response = await fetch(apiUrl)
+      const data = await response.json()
+      
+      setAirQualityApiData(data)
+      console.log("Air quality data:", data)
+      
+      // Also update our sample data object with live values for compatibility
+      setFormData(prev => ({
+        ...prev,
+        pm25: data.current.pm2_5,
+        pm10: data.current.pm10,
+        co2: data.hourly.carbon_dioxide[0] || prev.co2, // Using first hourly value
+        aqi: data.current.european_aqi
+      }))
+    } catch (error) {
+      console.error("Error fetching air quality data:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Function to handle city search
+  const handleCitySearch = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!cityInput.trim()) return
+    
+    const cityData = await fetchCityCoordinates(cityInput)
+    if (cityData) {
+      setSelectedCity(cityData)
+      fetchAirQualityData(cityData.lat, cityData.lon)
+      setCityInput("")
+    }
+  }
+
+  // Fetch air quality data for initial city on component mount
+  useEffect(() => {
+    fetchAirQualityData(selectedCity.lat, selectedCity.lon)
+  }, [])
 
   // Simulate anomaly detection when component mounts
   useEffect(() => {
@@ -194,13 +326,32 @@ export default function AIAlertsPage() {
             className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6"
           >
             <div>
-              <h1 className="text-3xl font-bold mb-2">AI Anomaly Detection</h1>
+              <h1 className="text-3xl font-bold mb-2">Air Quality Monitor</h1>
               <p className="text-muted-foreground">
-                Real-time monitoring of air quality and marine weather with AI-powered anomaly detection
+                Real-time monitoring of air quality with AI-powered anomaly detection
               </p>
             </div>
 
             <div className="flex gap-3">
+              <form onSubmit={handleCitySearch} className="relative">
+                <Input
+                  type="text"
+                  placeholder="Enter city name..."
+                  value={cityInput}
+                  onChange={(e) => setCityInput(e.target.value)}
+                  className="pr-10 w-[180px] md:w-[220px]"
+                />
+                <Button 
+                  type="submit" 
+                  variant="ghost" 
+                  size="icon" 
+                  className="absolute right-0 top-0 h-full"
+                  disabled={isLoading}
+                >
+                  {isLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                </Button>
+              </form>
+              
               <Dialog open={isDataAugmentationOpen} onOpenChange={setIsDataAugmentationOpen}>
                 <DialogTrigger asChild>
                   <Button className="bg-gradient-to-r from-neon-blue to-neon-orange gap-2">
@@ -375,16 +526,58 @@ export default function AIAlertsPage() {
             </motion.div>
           )}
 
+          {/* Current Location Card */}
+          <div className="mb-6">
+            <Card className="border-0 shadow-none bg-transparent">
+              <CardContent className="p-4">
+                <div className="glassmorphism p-4 rounded-xl flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-neon-blue/20">
+                      <MapPin className="h-5 w-5 text-neon-blue" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-medium">{selectedCity.name}</h3>
+                      <p className="text-xs text-muted-foreground">
+                        Lat: {selectedCity.lat.toFixed(4)}, Lon: {selectedCity.lon.toFixed(4)}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Badge className={getAqiStatusColor(airQualityApiData?.current.european_aqi || airQualityData.aqi)}>
+                      {airQualityApiData ? 
+                        (airQualityApiData.current.european_aqi <= 20 ? "Good" :
+                         airQualityApiData.current.european_aqi <= 40 ? "Fair" :
+                         airQualityApiData.current.european_aqi <= 60 ? "Moderate" :
+                         airQualityApiData.current.european_aqi <= 80 ? "Poor" :
+                         airQualityApiData.current.european_aqi <= 100 ? "Very Poor" : "Hazardous") 
+                        : airQualityData.status}
+                    </Badge>
+                    <Badge variant="outline" className="bg-blue-500/20 text-blue-400">
+                      {airQualityApiData ? 
+                        new Date(airQualityApiData.current.time).toLocaleString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        }) : "Live Data"}
+                    </Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
           <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
             <TabsList className="grid grid-cols-3 w-full mb-6">
               <TabsTrigger value="dashboard" className="data-[state=active]:text-gradient">
                 Dashboard
               </TabsTrigger>
               <TabsTrigger value="anomalies" className="data-[state=active]:text-gradient">
-                Anomaly Alerts
+                Pollutants
               </TabsTrigger>
               <TabsTrigger value="trends" className="data-[state=active]:text-gradient">
-                Data Trends
+                Forecast
               </TabsTrigger>
             </TabsList>
 
@@ -398,7 +591,11 @@ export default function AIAlertsPage() {
                         <CardTitle>Air Quality Monitoring</CardTitle>
                         <CardDescription>Real-time air quality metrics</CardDescription>
                       </div>
-                      <Badge className={getAqiStatusColor(airQualityData.aqi)}>{airQualityData.status}</Badge>
+                      <Badge className={getAqiStatusColor(airQualityApiData?.current.european_aqi || airQualityData.aqi)}>
+                        {airQualityApiData ? 
+                          `EU AQI: ${airQualityApiData.current.european_aqi}` : 
+                          airQualityData.status}
+                      </Badge>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -412,7 +609,9 @@ export default function AIAlertsPage() {
                             <span className="text-sm text-muted-foreground">PM2.5</span>
                           </div>
                           <div className="flex items-baseline gap-2">
-                            <span className="text-2xl font-semibold">{airQualityData.pm25}</span>
+                            <span className="text-2xl font-semibold">
+                              {airQualityApiData ? airQualityApiData.current.pm2_5.toFixed(1) : airQualityData.pm25}
+                            </span>
                             <span className="text-xs text-muted-foreground">μg/m³</span>
                           </div>
                         </div>
@@ -425,7 +624,9 @@ export default function AIAlertsPage() {
                             <span className="text-sm text-muted-foreground">PM10</span>
                           </div>
                           <div className="flex items-baseline gap-2">
-                            <span className="text-2xl font-semibold">{airQualityData.pm10}</span>
+                            <span className="text-2xl font-semibold">
+                              {airQualityApiData ? airQualityApiData.current.pm10.toFixed(1) : airQualityData.pm10}
+                            </span>
                             <span className="text-xs text-muted-foreground">μg/m³</span>
                           </div>
                         </div>
@@ -438,7 +639,10 @@ export default function AIAlertsPage() {
                             <span className="text-sm text-muted-foreground">CO2</span>
                           </div>
                           <div className="flex items-baseline gap-2">
-                            <span className="text-2xl font-semibold">{airQualityData.co2}</span>
+                            <span className="text-2xl font-semibold">
+                              {airQualityApiData && airQualityApiData.hourly.carbon_dioxide ? 
+                                airQualityApiData.hourly.carbon_dioxide[0] : airQualityData.co2}
+                            </span>
                             <span className="text-xs text-muted-foreground">ppm</span>
                           </div>
                         </div>
@@ -446,24 +650,153 @@ export default function AIAlertsPage() {
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
                             <div className="p-1.5 rounded-md bg-neon-orange/20">
-                              <Thermometer className="h-4 w-4 text-neon-orange" />
+                              <Wind className="h-4 w-4 text-neon-orange" />
                             </div>
-                            <span className="text-sm text-muted-foreground">Temperature</span>
+                            <span className="text-sm text-muted-foreground">O3 (Ozone)</span>
                           </div>
                           <div className="flex items-baseline gap-2">
-                            <span className="text-2xl font-semibold">{airQualityData.temperature}</span>
-                            <span className="text-xs text-muted-foreground">°C</span>
+                            <span className="text-2xl font-semibold">
+                              {airQualityApiData ? airQualityApiData.current.ozone.toFixed(1) : "35.0"}
+                            </span>
+                            <span className="text-xs text-muted-foreground">μg/m³</span>
                           </div>
                         </div>
                       </div>
 
                       <div>
                         <div className="flex justify-between mb-2">
-                          <h3 className="text-sm font-medium">Air Quality Index</h3>
-                          <span className="text-sm font-medium">{airQualityData.aqi}</span>
+                          <h3 className="text-sm font-medium">Air Quality Index (EU)</h3>
+                          <span className="text-sm font-medium">
+                            {airQualityApiData ? airQualityApiData.current.european_aqi : airQualityData.aqi}
+                          </span>
                         </div>
                         <div className="relative">
-                          <Progress value={airQualityData.aqi} max={300} className="h-2" />
+                          <Progress 
+                            value={airQualityApiData ? airQualityApiData.current.european_aqi : airQualityData.aqi} 
+                            max={100} 
+                            className="h-2" 
+                          />
+                          <div className="flex justify-between text-xs mt-1 text-muted-foreground">
+                            <span>Good</span>
+                            <span>Fair</span>
+                            <span>Moderate</span>
+                            <span>Poor</span>
+                            <span>Very Poor</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-sm pt-2 border-t border-muted/20">
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-muted-foreground">
+                            Updated {airQualityApiData ? 
+                              new Date(airQualityApiData.current.time).toLocaleString(undefined, {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              }) : 
+                              airQualityData.lastUpdated}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <RefreshCw className="h-3 w-3 text-blue-400" />
+                          <span className="text-muted-foreground">Real-time data</span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Pollutants Card */}
+                <Card className="border-0 shadow-none bg-transparent">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle>Additional Pollutants</CardTitle>
+                        <CardDescription>Other air quality indicators</CardDescription>
+                      </div>
+                      <Badge className="bg-blue-500/20 text-blue-400">Detailed Data</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="glassmorphism p-5 rounded-xl space-y-5">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <div className="p-1.5 rounded-md bg-neon-blue/20">
+                              <Gauge className="h-4 w-4 text-neon-blue" />
+                            </div>
+                            <span className="text-sm text-muted-foreground">NO2</span>
+                          </div>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-2xl font-semibold">
+                              {airQualityApiData ? airQualityApiData.current.nitrogen_dioxide.toFixed(1) : "12.8"}
+                            </span>
+                            <span className="text-xs text-muted-foreground">μg/m³</span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <div className="p-1.5 rounded-md bg-neon-blue/20">
+                              <Gauge className="h-4 w-4 text-neon-blue" />
+                            </div>
+                            <span className="text-sm text-muted-foreground">SO2</span>
+                          </div>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-2xl font-semibold">
+                              {airQualityApiData ? airQualityApiData.current.sulphur_dioxide.toFixed(1) : "2.5"}
+                            </span>
+                            <span className="text-xs text-muted-foreground">μg/m³</span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <div className="p-1.5 rounded-md bg-neon-orange/20">
+                              <Wind className="h-4 w-4 text-neon-orange" />
+                            </div>
+                            <span className="text-sm text-muted-foreground">CO</span>
+                          </div>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-2xl font-semibold">
+                              {airQualityApiData ? airQualityApiData.current.carbon_monoxide.toFixed(1) : "215.0"}
+                            </span>
+                            <span className="text-xs text-muted-foreground">μg/m³</span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <div className="p-1.5 rounded-md bg-neon-orange/20">
+                              <CloudRain className="h-4 w-4 text-neon-orange" />
+                            </div>
+                            <span className="text-sm text-muted-foreground">NH3</span>
+                          </div>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-2xl font-semibold">
+                              {airQualityApiData ? airQualityApiData.current.ammonia.toFixed(1) : "1.8"}
+                            </span>
+                            <span className="text-xs text-muted-foreground">μg/m³</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between mb-2">
+                          <h3 className="text-sm font-medium">US AQI</h3>
+                          <span className="text-sm font-medium">
+                            {airQualityApiData ? airQualityApiData.current.us_aqi : "65"}
+                          </span>
+                        </div>
+                        <div className="relative">
+                          <Progress 
+                            value={airQualityApiData ? airQualityApiData.current.us_aqi : 65} 
+                            max={300} 
+                            className="h-2" 
+                          />
                           <div className="flex justify-between text-xs mt-1 text-muted-foreground">
                             <span>Good</span>
                             <span>Moderate</span>
@@ -476,126 +809,20 @@ export default function AIAlertsPage() {
                       <div className="flex items-center justify-between text-sm pt-2 border-t border-muted/20">
                         <div className="flex items-center gap-1">
                           <Clock className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-muted-foreground">Updated {airQualityData.lastUpdated}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {airQualityData.trend === "rising" ? (
-                            <ArrowUp className="h-3 w-3 text-red-400" />
-                          ) : airQualityData.trend === "falling" ? (
-                            <ArrowDown className="h-3 w-3 text-green-400" />
-                          ) : (
-                            <RefreshCw className="h-3 w-3 text-blue-400" />
-                          )}
-                          <span className="text-muted-foreground">Trend: {airQualityData.trend}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Marine Weather Card */}
-                <Card className="border-0 shadow-none bg-transparent">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle>Marine Weather Monitoring</CardTitle>
-                        <CardDescription>Real-time marine weather conditions</CardDescription>
-                      </div>
-                      <Badge className="bg-blue-500/20 text-blue-400">Live Data</Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="glassmorphism p-5 rounded-xl space-y-5">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <div className="p-1.5 rounded-md bg-neon-blue/20">
-                              <Wind className="h-4 w-4 text-neon-blue" />
-                            </div>
-                            <span className="text-sm text-muted-foreground">Wind Speed</span>
-                          </div>
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-2xl font-semibold">{marineWeatherData.windSpeed}</span>
-                            <span className="text-xs text-muted-foreground">km/h</span>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <div className="p-1.5 rounded-md bg-neon-blue/20">
-                              <Waves className="h-4 w-4 text-neon-blue" />
-                            </div>
-                            <span className="text-sm text-muted-foreground">Wave Height</span>
-                          </div>
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-2xl font-semibold">{marineWeatherData.waveHeight}</span>
-                            <span className="text-xs text-muted-foreground">m</span>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <div className="p-1.5 rounded-md bg-neon-orange/20">
-                              <Thermometer className="h-4 w-4 text-neon-orange" />
-                            </div>
-                            <span className="text-sm text-muted-foreground">Water Temperature</span>
-                          </div>
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-2xl font-semibold">{marineWeatherData.waterTemperature}</span>
-                            <span className="text-xs text-muted-foreground">°C</span>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <div className="p-1.5 rounded-md bg-neon-orange/20">
-                              <CloudRain className="h-4 w-4 text-neon-orange" />
-                            </div>
-                            <span className="text-sm text-muted-foreground">Humidity</span>
-                          </div>
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-2xl font-semibold">{marineWeatherData.humidity}</span>
-                            <span className="text-xs text-muted-foreground">%</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="flex justify-between mb-2">
-                          <h3 className="text-sm font-medium">Wave Conditions</h3>
-                          <span className="text-sm font-medium">
-                            {marineWeatherData.waveHeight < 1
-                              ? "Calm"
-                              : marineWeatherData.waveHeight < 2
-                                ? "Moderate"
-                                : "Rough"}
+                          <span className="text-muted-foreground">
+                            Updated {airQualityApiData ? 
+                              new Date(airQualityApiData.current.time).toLocaleString(undefined, {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              }) : 
+                              "15 minutes ago"}
                           </span>
                         </div>
-                        <div className="relative">
-                          <Progress value={marineWeatherData.waveHeight * 25} max={100} className="h-2" />
-                          <div className="flex justify-between text-xs mt-1 text-muted-foreground">
-                            <span>Calm</span>
-                            <span>Moderate</span>
-                            <span>Rough</span>
-                            <span>High</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between text-sm pt-2 border-t border-muted/20">
                         <div className="flex items-center gap-1">
-                          <Clock className="h-3 w-3 text-muted-foreground" />
-                          <span className="text-muted-foreground">Updated {marineWeatherData.lastUpdated}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {marineWeatherData.trend === "rising" ? (
-                            <ArrowUp className="h-3 w-3 text-red-400" />
-                          ) : marineWeatherData.trend === "falling" ? (
-                            <ArrowDown className="h-3 w-3 text-green-400" />
-                          ) : (
                             <RefreshCw className="h-3 w-3 text-blue-400" />
-                          )}
-                          <span className="text-muted-foreground">Trend: {marineWeatherData.trend}</span>
+                          <span className="text-muted-foreground">Real-time data</span>
                         </div>
                       </div>
                     </div>
@@ -609,22 +836,131 @@ export default function AIAlertsPage() {
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <div>
-                          <CardTitle>AI Anomaly Detection Status</CardTitle>
-                          <CardDescription>Real-time monitoring and analysis</CardDescription>
+                          <CardTitle>Pollen Levels</CardTitle>
+                          <CardDescription>Current pollen concentrations in the area</CardDescription>
                         </div>
                         <Badge className="bg-neon-blue/20 text-neon-blue">
-                          <BarChart3 className="h-3 w-3 mr-1" /> AI Powered
+                          <Clock className="h-3 w-3 mr-1" /> Today's Data
                         </Badge>
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="glassmorphism p-4 rounded-xl h-[300px] flex items-center justify-center">
-                        <div className="text-center">
-                          <BarChart3 className="h-16 w-16 mx-auto mb-4 text-neon-blue" />
-                          <h3 className="text-xl font-medium mb-2">Anomaly Detection Chart</h3>
-                          <p className="text-muted-foreground max-w-md">
-                            This would display a chart showing detected anomalies and data patterns over time.
-                          </p>
+                      <div className="glassmorphism p-5 rounded-xl">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <div className="p-1.5 rounded-md bg-green-500/20">
+                                <Gauge className="h-4 w-4 text-green-400" />
+                              </div>
+                              <span className="text-sm">Alder Pollen</span>
+                            </div>
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-2xl font-semibold">
+                                {airQualityApiData ? airQualityApiData.current.alder_pollen.toFixed(1) : "0.0"}
+                              </span>
+                              <span className="text-xs text-muted-foreground">grains/m³</span>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <div className="p-1.5 rounded-md bg-yellow-500/20">
+                                <Gauge className="h-4 w-4 text-yellow-400" />
+                              </div>
+                              <span className="text-sm">Birch Pollen</span>
+                            </div>
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-2xl font-semibold">
+                                {airQualityApiData ? airQualityApiData.current.birch_pollen.toFixed(1) : "2.8"}
+                              </span>
+                              <span className="text-xs text-muted-foreground">grains/m³</span>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <div className="p-1.5 rounded-md bg-blue-500/20">
+                                <Gauge className="h-4 w-4 text-blue-400" />
+                              </div>
+                              <span className="text-sm">Grass Pollen</span>
+                            </div>
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-2xl font-semibold">
+                                {airQualityApiData ? airQualityApiData.current.grass_pollen.toFixed(1) : "0.0"}
+                              </span>
+                              <span className="text-xs text-muted-foreground">grains/m³</span>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <div className="p-1.5 rounded-md bg-purple-500/20">
+                                <Gauge className="h-4 w-4 text-purple-400" />
+                              </div>
+                              <span className="text-sm">Mugwort Pollen</span>
+                            </div>
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-2xl font-semibold">
+                                {airQualityApiData ? airQualityApiData.current.mugwort_pollen.toFixed(1) : "0.0"}
+                              </span>
+                              <span className="text-xs text-muted-foreground">grains/m³</span>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <div className="p-1.5 rounded-md bg-amber-500/20">
+                                <Gauge className="h-4 w-4 text-amber-400" />
+                              </div>
+                              <span className="text-sm">Olive Pollen</span>
+                            </div>
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-2xl font-semibold">
+                                {airQualityApiData ? airQualityApiData.current.olive_pollen.toFixed(1) : "0.0"}
+                              </span>
+                              <span className="text-xs text-muted-foreground">grains/m³</span>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <div className="p-1.5 rounded-md bg-red-500/20">
+                                <Gauge className="h-4 w-4 text-red-400" />
+                              </div>
+                              <span className="text-sm">Ragweed Pollen</span>
+                            </div>
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-2xl font-semibold">
+                                {airQualityApiData ? airQualityApiData.current.ragweed_pollen.toFixed(1) : "0.0"}
+                              </span>
+                              <span className="text-xs text-muted-foreground">grains/m³</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="border-t border-muted/20 pt-4 mt-2">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Info className="h-4 w-4 text-neon-blue" />
+                            <h3 className="font-medium text-sm">Pollen Level Interpretation</h3>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 text-sm gap-3">
+                            <div className="flex items-center gap-2">
+                              <span className="w-3 h-3 rounded-full bg-green-400"></span>
+                              <span className="text-muted-foreground">0-1: Low levels</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="w-3 h-3 rounded-full bg-yellow-400"></span>
+                              <span className="text-muted-foreground">1-5: Moderate levels</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="w-3 h-3 rounded-full bg-orange-400"></span>
+                              <span className="text-muted-foreground">5-20: High levels</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="w-3 h-3 rounded-full bg-red-400"></span>
+                              <span className="text-muted-foreground">20+: Very high levels</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -634,51 +970,92 @@ export default function AIAlertsPage() {
                 <div>
                   <Card className="border-0 shadow-none bg-transparent">
                     <CardHeader>
-                      <CardTitle>Recent Anomalies</CardTitle>
-                      <CardDescription>AI-detected data irregularities</CardDescription>
+                      <CardTitle>UV & Dust Levels</CardTitle>
+                      <CardDescription>Additional environmental factors</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="glassmorphism p-4 rounded-xl space-y-4">
-                        {anomalyAlerts.slice(0, 3).map((alert) => (
-                          <div
-                            key={alert.id}
-                            className={`p-3 rounded-lg border-l-2 ${getSeverityColor(alert.severity)}`}
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <h4 className="text-sm font-medium">{alert.title}</h4>
-                              <Badge
-                                variant="outline"
-                                className={
-                                  alert.severity === "high"
-                                    ? "bg-red-500/20 text-red-400"
-                                    : alert.severity === "medium"
-                                      ? "bg-amber-500/20 text-amber-400"
-                                      : "bg-blue-500/20 text-blue-400"
-                                }
-                              >
-                                {alert.severity === "high" ? "High" : alert.severity === "medium" ? "Medium" : "Low"}
-                              </Badge>
+                        <div className="space-y-3">
+                          <div>
+                            <div className="flex justify-between mb-1 text-sm">
+                              <span>UV Index</span>
+                              <span>
+                                {airQualityApiData ? airQualityApiData.current.uv_index.toFixed(1) : "0.0"}
+                              </span>
                             </div>
-                            <p className="text-xs text-muted-foreground mb-1">{alert.message}</p>
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="text-muted-foreground">{alert.time}</span>
-                              {!alert.acknowledged && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-6 px-2 text-xs"
-                                  onClick={() => acknowledgeAlert(alert.id)}
-                                >
-                                  <Check className="h-3 w-3 mr-1" /> Acknowledge
-                                </Button>
-                              )}
+                            <Progress 
+                              value={airQualityApiData ? (airQualityApiData.current.uv_index / 11) * 100 : 0} 
+                              className="h-2" 
+                            />
+                            <div className="flex justify-between text-xs mt-1 text-muted-foreground">
+                              <span>Low</span>
+                              <span>Moderate</span>
+                              <span>High</span>
+                              <span>Very High</span>
                             </div>
                           </div>
-                        ))}
+                          
+                          <div>
+                            <div className="flex justify-between mb-1 text-sm">
+                              <span>Clear Sky UV Index</span>
+                              <span>
+                                {airQualityApiData ? airQualityApiData.current.uv_index_clear_sky.toFixed(1) : "0.0"}
+                              </span>
+                            </div>
+                            <Progress 
+                              value={airQualityApiData ? (airQualityApiData.current.uv_index_clear_sky / 11) * 100 : 0} 
+                              className="h-2" 
+                            />
+                          </div>
+                          
+                          <div>
+                            <div className="flex justify-between mb-1 text-sm">
+                              <span>Dust Concentration</span>
+                              <span>
+                                {airQualityApiData ? airQualityApiData.current.dust.toFixed(1) : "0.0"}
+                              </span>
+                            </div>
+                            <Progress 
+                              value={airQualityApiData ? Math.min((airQualityApiData.current.dust / 50) * 100, 100) : 0} 
+                              className="h-2" 
+                            />
+                          </div>
+                          
+                          <div>
+                            <div className="flex justify-between mb-1 text-sm">
+                              <span>Aerosol Optical Depth</span>
+                              <span>
+                                {airQualityApiData ? airQualityApiData.current.aerosol_optical_depth.toFixed(2) : "0.31"}
+                              </span>
+                            </div>
+                            <Progress 
+                              value={airQualityApiData ? (airQualityApiData.current.aerosol_optical_depth / 1) * 100 : 31} 
+                              className="h-2" 
+                            />
+                          </div>
+                        </div>
 
-                        <Button variant="outline" className="w-full text-sm">
-                          View All Anomalies
-                        </Button>
+                        <div className="pt-3 border-t border-muted/20">
+                          <h4 className="text-sm font-medium mb-2">UV Index Scale</h4>
+                          <ul className="text-xs space-y-2">
+                            <li className="flex items-start gap-2">
+                              <span className="text-green-400">•</span>
+                              <span>0-2: Low - Minimal protection needed</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-yellow-400">•</span>
+                              <span>3-5: Moderate - Protection recommended</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-orange-400">•</span>
+                              <span>6-7: High - Protection essential</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-red-400">•</span>
+                              <span>8+: Very High - Extra protection needed</span>
+                            </li>
+                          </ul>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -693,75 +1070,121 @@ export default function AIAlertsPage() {
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <div>
-                          <CardTitle>Anomaly Alerts</CardTitle>
-                          <CardDescription>AI-detected data irregularities and potential issues</CardDescription>
+                          <CardTitle>Hourly Pollutant Trends</CardTitle>
+                          <CardDescription>24-hour pollutant concentration patterns</CardDescription>
                         </div>
-                        <Badge className="bg-red-500/20 text-red-400">{activeAnomalies} Active Alerts</Badge>
+                        <Badge className="bg-blue-500/20 text-blue-400">24-Hour Data</Badge>
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-4">
-                        {anomalyAlerts.map((alert) => (
-                          <motion.div
-                            key={alert.id}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ duration: 0.3, delay: alert.id * 0.1 }}
-                            className={`p-4 border-l-4 rounded-r-lg glassmorphism ${
-                              alert.severity === "high"
-                                ? "border-red-500 bg-red-500/10"
-                                : alert.severity === "medium"
-                                  ? "border-amber-500 bg-amber-500/10"
-                                  : "border-blue-500 bg-blue-500/10"
-                            }`}
-                          >
-                            <div className="flex items-start">
-                              <div className="flex-shrink-0">
-                                <AlertCircle
-                                  className={`h-5 w-5 ${
-                                    alert.severity === "high"
-                                      ? "text-red-500"
-                                      : alert.severity === "medium"
-                                        ? "text-amber-500"
-                                        : "text-blue-500"
-                                  }`}
-                                />
+                      <div className="glassmorphism p-5 rounded-xl space-y-4">
+                        {/* PM2.5 Trend */}
+                        <div>
+                          <div className="flex justify-between mb-2">
+                            <h3 className="text-sm font-medium">PM2.5 (μg/m³) - 24 Hour Trend</h3>
+                          </div>
+                          <div className="h-[80px] flex items-end gap-1">
+                            {airQualityApiData ? 
+                              airQualityApiData.hourly.pm2_5.slice(0, 24).map((value, index) => (
+                                <div 
+                                  key={index}
+                                  className="flex-1 bg-gradient-to-t from-neon-blue/20 to-neon-blue/60 rounded-t relative group"
+                                  style={{ height: `${Math.min((value / 50) * 100, 100)}%` }}
+                                >
+                                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 bg-background border border-muted px-1.5 py-0.5 rounded text-xs opacity-0 group-hover:opacity-100 whitespace-nowrap">
+                                    {value.toFixed(1)} μg/m³
                               </div>
-                              <div className="ml-3 flex-1">
-                                <div className="flex items-center justify-between mb-1">
-                                  <h3 className="font-medium">{alert.title}</h3>
-                                  <div className="flex items-center gap-2">
-                                    <Badge
-                                      variant="outline"
-                                      className={
-                                        alert.severity === "high"
-                                          ? "bg-red-500/20 text-red-400"
-                                          : alert.severity === "medium"
-                                            ? "bg-amber-500/20 text-amber-400"
-                                            : "bg-blue-500/20 text-blue-400"
-                                      }
-                                    >
-                                      {alert.severity === "high"
-                                        ? "High"
-                                        : alert.severity === "medium"
-                                          ? "Medium"
-                                          : "Low"}
-                                    </Badge>
+                                </div>
+                              )) :
+                              Array.from({ length: 24 }, (_, i) => (
+                                <div 
+                                  key={i}
+                                  className="flex-1 bg-gradient-to-t from-neon-blue/20 to-neon-blue/60 rounded-t"
+                                  style={{ height: `${Math.random() * 80 + 10}%` }}
+                                ></div>
+                              ))
+                            }
+                          </div>
+                          <div className="flex justify-between text-xs mt-1 text-muted-foreground">
+                            <span>00:00</span>
+                            <span>06:00</span>
+                            <span>12:00</span>
+                            <span>18:00</span>
+                            <span>24:00</span>
+                          </div>
+                        </div>
+                        
+                        {/* PM10 Trend */}
+                        <div className="pt-4">
+                          <div className="flex justify-between mb-2">
+                            <h3 className="text-sm font-medium">PM10 (μg/m³) - 24 Hour Trend</h3>
+                          </div>
+                          <div className="h-[80px] flex items-end gap-1">
+                            {airQualityApiData ? 
+                              airQualityApiData.hourly.pm10.slice(0, 24).map((value, index) => (
+                                <div 
+                                  key={index}
+                                  className="flex-1 bg-gradient-to-t from-neon-orange/20 to-neon-orange/60 rounded-t relative group"
+                                  style={{ height: `${Math.min((value / 100) * 100, 100)}%` }}
+                                >
+                                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 bg-background border border-muted px-1.5 py-0.5 rounded text-xs opacity-0 group-hover:opacity-100 whitespace-nowrap">
+                                    {value.toFixed(1)} μg/m³
                                   </div>
                                 </div>
-                                <div className="text-sm text-muted-foreground mb-1">{alert.message}</div>
-                                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                  <span>{alert.time}</span>
-                                  {!alert.acknowledged && (
-                                    <Button variant="outline" size="sm" onClick={() => acknowledgeAlert(alert.id)}>
-                                      <Check className="h-3 w-3 mr-1" /> Acknowledge
-                                    </Button>
-                                  )}
+                              )) :
+                              Array.from({ length: 24 }, (_, i) => (
+                                <div 
+                                  key={i}
+                                  className="flex-1 bg-gradient-to-t from-neon-orange/20 to-neon-orange/60 rounded-t"
+                                  style={{ height: `${Math.random() * 80 + 10}%` }}
+                                ></div>
+                              ))
+                            }
                                 </div>
+                          <div className="flex justify-between text-xs mt-1 text-muted-foreground">
+                            <span>00:00</span>
+                            <span>06:00</span>
+                            <span>12:00</span>
+                            <span>18:00</span>
+                            <span>24:00</span>
                               </div>
                             </div>
-                          </motion.div>
-                        ))}
+                        
+                        {/* Ozone Trend */}
+                        <div className="pt-4">
+                          <div className="flex justify-between mb-2">
+                            <h3 className="text-sm font-medium">Ozone (μg/m³) - 24 Hour Trend</h3>
+                          </div>
+                          <div className="h-[80px] flex items-end gap-1">
+                            {airQualityApiData ? 
+                              airQualityApiData.hourly.ozone.slice(0, 24).map((value, index) => (
+                                <div 
+                                  key={index}
+                                  className="flex-1 bg-gradient-to-t from-blue-400/20 to-blue-400/60 rounded-t relative group"
+                                  style={{ height: `${Math.min((value / 120) * 100, 100)}%` }}
+                                >
+                                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 bg-background border border-muted px-1.5 py-0.5 rounded text-xs opacity-0 group-hover:opacity-100 whitespace-nowrap">
+                                    {value.toFixed(1)} μg/m³
+                                  </div>
+                                </div>
+                              )) :
+                              Array.from({ length: 24 }, (_, i) => (
+                                <div 
+                                  key={i}
+                                  className="flex-1 bg-gradient-to-t from-blue-400/20 to-blue-400/60 rounded-t"
+                                  style={{ height: `${Math.random() * 80 + 10}%` }}
+                                ></div>
+                              ))
+                            }
+                          </div>
+                          <div className="flex justify-between text-xs mt-1 text-muted-foreground">
+                            <span>00:00</span>
+                            <span>06:00</span>
+                            <span>12:00</span>
+                            <span>18:00</span>
+                            <span>24:00</span>
+                          </div>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -770,85 +1193,138 @@ export default function AIAlertsPage() {
                 <div className="flex flex-col gap-6">
                   <Card className="border-0 shadow-none bg-transparent">
                     <CardHeader>
-                      <CardTitle>Anomaly Detection Settings</CardTitle>
+                      <CardTitle>Air Quality Information</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="glassmorphism p-4 rounded-lg space-y-4">
-                        <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <Info className="h-4 w-4 text-neon-blue" />
-                            <span className="font-medium">Detection Sensitivity</span>
-                          </div>
-                          <Badge variant="outline" className="bg-neon-blue/20 text-neon-blue">
-                            Medium
-                          </Badge>
+                          <Info className="h-5 w-5 text-neon-blue" />
+                          <h3 className="font-medium">Health Implications</h3>
                         </div>
 
                         <div className="space-y-3">
                           <div>
                             <div className="flex justify-between mb-1 text-sm">
-                              <span>PM2.5 Threshold</span>
-                              <span>±15%</span>
+                              <span>PM2.5 Level</span>
+                              <span className={
+                                airQualityApiData && airQualityApiData.current.pm2_5 <= 10 ? "text-green-400" :
+                                airQualityApiData && airQualityApiData.current.pm2_5 <= 25 ? "text-yellow-400" :
+                                airQualityApiData && airQualityApiData.current.pm2_5 <= 50 ? "text-orange-400" :
+                                "text-red-400"
+                              }>
+                                {airQualityApiData && airQualityApiData.current.pm2_5 <= 10 ? "Good" :
+                                 airQualityApiData && airQualityApiData.current.pm2_5 <= 25 ? "Moderate" :
+                                 airQualityApiData && airQualityApiData.current.pm2_5 <= 50 ? "Unhealthy for Sensitive Groups" :
+                                 "Unhealthy"}
+                              </span>
                             </div>
-                            <Progress value={50} className="h-2" />
+                            <Progress value={
+                              airQualityApiData ? 
+                                Math.min((airQualityApiData.current.pm2_5 / 50) * 100, 100) : 
+                                50
+                            } className="h-2" />
                           </div>
+                          
                           <div>
                             <div className="flex justify-between mb-1 text-sm">
-                              <span>Wave Height Threshold</span>
-                              <span>±20%</span>
+                              <span>Ozone Level</span>
+                              <span className={
+                                airQualityApiData && airQualityApiData.current.ozone <= 60 ? "text-green-400" :
+                                airQualityApiData && airQualityApiData.current.ozone <= 120 ? "text-yellow-400" :
+                                airQualityApiData && airQualityApiData.current.ozone <= 180 ? "text-orange-400" :
+                                "text-red-400"
+                              }>
+                                {airQualityApiData && airQualityApiData.current.ozone <= 60 ? "Good" :
+                                 airQualityApiData && airQualityApiData.current.ozone <= 120 ? "Moderate" :
+                                 airQualityApiData && airQualityApiData.current.ozone <= 180 ? "Unhealthy for Sensitive Groups" :
+                                 "Unhealthy"}
+                              </span>
                             </div>
-                            <Progress value={65} className="h-2" />
+                            <Progress value={
+                              airQualityApiData ? 
+                                Math.min((airQualityApiData.current.ozone / 180) * 100, 100) : 
+                                30
+                            } className="h-2" />
                           </div>
+                          
                           <div>
                             <div className="flex justify-between mb-1 text-sm">
-                              <span>Temperature Threshold</span>
-                              <span>±10%</span>
+                              <span>NO2 Level</span>
+                              <span className={
+                                airQualityApiData && airQualityApiData.current.nitrogen_dioxide <= 40 ? "text-green-400" :
+                                airQualityApiData && airQualityApiData.current.nitrogen_dioxide <= 90 ? "text-yellow-400" :
+                                airQualityApiData && airQualityApiData.current.nitrogen_dioxide <= 120 ? "text-orange-400" :
+                                "text-red-400"
+                              }>
+                                {airQualityApiData && airQualityApiData.current.nitrogen_dioxide <= 40 ? "Good" :
+                                 airQualityApiData && airQualityApiData.current.nitrogen_dioxide <= 90 ? "Moderate" :
+                                 airQualityApiData && airQualityApiData.current.nitrogen_dioxide <= 120 ? "Unhealthy for Sensitive Groups" :
+                                 "Unhealthy"}
+                              </span>
                             </div>
-                            <Progress value={35} className="h-2" />
+                            <Progress value={
+                              airQualityApiData ? 
+                                Math.min((airQualityApiData.current.nitrogen_dioxide / 120) * 100, 100) : 
+                                20
+                            } className="h-2" />
                           </div>
                         </div>
 
-                        <Button className="w-full bg-gradient-to-r from-neon-blue to-neon-orange">
-                          Adjust Sensitivity
-                        </Button>
+                        <div className="pt-3 border-t border-muted/20">
+                          <h4 className="text-sm font-medium mb-2">Health Recommendations</h4>
+                          <ul className="text-xs space-y-2 text-muted-foreground">
+                            <li className="flex items-start gap-2">
+                              <span className="text-neon-blue">•</span>
+                              <span>Keep windows closed when pollution levels are high</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-neon-blue">•</span>
+                              <span>Use air purifiers in indoor spaces</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-neon-blue">•</span>
+                              <span>Limit outdoor exercise during peak pollution hours</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                              <span className="text-neon-blue">•</span>
+                              <span>Wear masks when air quality is unhealthy</span>
+                            </li>
+                          </ul>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
 
                   <Card className="border-0 shadow-none bg-transparent">
                     <CardHeader>
-                      <CardTitle>AI Model Performance</CardTitle>
+                      <CardTitle>Pollution Sources</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="glassmorphism p-4 rounded-lg space-y-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <BarChart3 className="h-4 w-4 text-neon-orange" />
-                            <span className="font-medium">Model Accuracy</span>
-                          </div>
-                          <Badge variant="outline" className="bg-green-500/20 text-green-400">
-                            94.7%
-                          </Badge>
-                        </div>
-
                         <div className="space-y-3">
-                          <div className="flex justify-between text-sm">
-                            <span>False Positives</span>
-                            <span className="text-amber-400">3.2%</span>
+                          <div className="flex items-center justify-between text-sm">
+                            <span>Traffic Emissions</span>
+                            <Badge variant="outline" className="bg-amber-500/20 text-amber-400">Major</Badge>
                           </div>
-                          <div className="flex justify-between text-sm">
-                            <span>False Negatives</span>
-                            <span className="text-red-400">2.1%</span>
+                          <div className="flex items-center justify-between text-sm">
+                            <span>Industrial Emissions</span>
+                            <Badge variant="outline" className="bg-yellow-500/20 text-yellow-400">Moderate</Badge>
                           </div>
-                          <div className="flex justify-between text-sm">
-                            <span>Last Retrained</span>
-                            <span>2 days ago</span>
+                          <div className="flex items-center justify-between text-sm">
+                            <span>Natural Sources</span>
+                            <Badge variant="outline" className="bg-green-500/20 text-green-400">Minor</Badge>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span>Residential Heating</span>
+                            <Badge variant="outline" className="bg-yellow-500/20 text-yellow-400">Moderate</Badge>
                           </div>
                         </div>
 
-                        <Button variant="outline" className="w-full">
-                          <RefreshCw className="h-4 w-4 mr-2" /> Retrain Model
-                        </Button>
+                        <div className="pt-2 border-t border-muted/20 text-xs text-muted-foreground">
+                          <p>
+                            Data based on emission inventories and source attribution models.
+                          </p>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -863,23 +1339,152 @@ export default function AIAlertsPage() {
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <div>
-                          <CardTitle>Data Trend Analysis</CardTitle>
-                          <CardDescription>24-hour trends with anomaly detection</CardDescription>
+                          <CardTitle>5-Day Air Quality Forecast</CardTitle>
+                          <CardDescription>Projected air quality index and pollutant levels</CardDescription>
                         </div>
                         <Badge className="bg-neon-blue/20 text-neon-blue">
-                          <BarChart3 className="h-3 w-3 mr-1" /> 24h Data
+                          <BarChart3 className="h-3 w-3 mr-1" /> 5-Day Forecast
                         </Badge>
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="glassmorphism p-4 rounded-xl h-[400px] flex items-center justify-center">
-                        <div className="text-center">
-                          <BarChart3 className="h-16 w-16 mx-auto mb-4 text-neon-blue" />
-                          <h3 className="text-xl font-medium mb-2">Data Trends Chart</h3>
-                          <p className="text-muted-foreground max-w-md">
-                            This would display a chart showing air quality and marine weather trends over time with
-                            anomaly indicators.
-                          </p>
+                      <div className="glassmorphism p-5 rounded-xl space-y-5">
+                        {/* PM2.5 Forecast */}
+                        <div>
+                          <div className="flex justify-between mb-2">
+                            <h3 className="text-sm font-medium">PM2.5 Forecast (μg/m³)</h3>
+                          </div>
+                          <div className="h-[100px] flex items-end gap-1">
+                            {airQualityApiData ?
+                              // Group by day and show average for 5 days
+                              Array.from({ length: 5 }, (_, dayIndex) => {
+                                const startIdx = dayIndex * 24;
+                                const dayData = airQualityApiData.hourly.pm2_5.slice(startIdx, startIdx + 24);
+                                const avgValue = dayData.reduce((sum, val) => sum + val, 0) / dayData.length;
+                                
+                                return (
+                                  <div key={dayIndex} className="flex-1 flex flex-col items-center gap-1">
+                                    <div 
+                                      className="w-full bg-gradient-to-t from-neon-blue/20 to-neon-blue/60 rounded-t relative group"
+                                      style={{ height: `${Math.min((avgValue / 50) * 100, 100)}%` }}
+                                    >
+                                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 bg-background border border-muted px-1.5 py-0.5 rounded text-xs opacity-0 group-hover:opacity-100 whitespace-nowrap">
+                                        {avgValue.toFixed(1)} μg/m³
+                                      </div>
+                                    </div>
+                                    <span className="text-xs text-muted-foreground">
+                                      {new Date(
+                                        new Date(airQualityApiData.hourly.time[startIdx]).getTime() + dayIndex * 86400000
+                                      ).toLocaleDateString(undefined, { weekday: 'short' })}
+                                    </span>
+                                  </div>
+                                );
+                              }) :
+                              Array.from({ length: 5 }, (_, i) => (
+                                <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                                  <div 
+                                    className="w-full bg-gradient-to-t from-neon-blue/20 to-neon-blue/60 rounded-t"
+                                    style={{ height: `${Math.random() * 80 + 10}%` }}
+                                  ></div>
+                                  <span className="text-xs text-muted-foreground">
+                                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri'][i]}
+                                  </span>
+                                </div>
+                              ))
+                            }
+                          </div>
+                        </div>
+                        
+                        {/* Ozone Forecast */}
+                        <div className="pt-4">
+                          <div className="flex justify-between mb-2">
+                            <h3 className="text-sm font-medium">Ozone Forecast (μg/m³)</h3>
+                          </div>
+                          <div className="h-[100px] flex items-end gap-1">
+                            {airQualityApiData ?
+                              // Group by day and show average for 5 days
+                              Array.from({ length: 5 }, (_, dayIndex) => {
+                                const startIdx = dayIndex * 24;
+                                const dayData = airQualityApiData.hourly.ozone.slice(startIdx, startIdx + 24);
+                                const avgValue = dayData.reduce((sum, val) => sum + val, 0) / dayData.length;
+                                
+                                return (
+                                  <div key={dayIndex} className="flex-1 flex flex-col items-center gap-1">
+                                    <div 
+                                      className="w-full bg-gradient-to-t from-blue-400/20 to-blue-400/60 rounded-t relative group"
+                                      style={{ height: `${Math.min((avgValue / 120) * 100, 100)}%` }}
+                                    >
+                                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 bg-background border border-muted px-1.5 py-0.5 rounded text-xs opacity-0 group-hover:opacity-100 whitespace-nowrap">
+                                        {avgValue.toFixed(1)} μg/m³
+                                      </div>
+                                    </div>
+                                    <span className="text-xs text-muted-foreground">
+                                      {new Date(
+                                        new Date(airQualityApiData.hourly.time[startIdx]).getTime() + dayIndex * 86400000
+                                      ).toLocaleDateString(undefined, { weekday: 'short' })}
+                                    </span>
+                                  </div>
+                                );
+                              }) :
+                              Array.from({ length: 5 }, (_, i) => (
+                                <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                                  <div 
+                                    className="w-full bg-gradient-to-t from-blue-400/20 to-blue-400/60 rounded-t"
+                                    style={{ height: `${Math.random() * 80 + 10}%` }}
+                                  ></div>
+                                  <span className="text-xs text-muted-foreground">
+                                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri'][i]}
+                                  </span>
+                                </div>
+                              ))
+                            }
+                          </div>
+                        </div>
+                        
+                        {/* NO2 Forecast */}
+                        <div className="pt-4">
+                          <div className="flex justify-between mb-2">
+                            <h3 className="text-sm font-medium">Nitrogen Dioxide Forecast (μg/m³)</h3>
+                          </div>
+                          <div className="h-[100px] flex items-end gap-1">
+                            {airQualityApiData ?
+                              // Group by day and show average for 5 days
+                              Array.from({ length: 5 }, (_, dayIndex) => {
+                                const startIdx = dayIndex * 24;
+                                const dayData = airQualityApiData.hourly.nitrogen_dioxide.slice(startIdx, startIdx + 24);
+                                const avgValue = dayData.reduce((sum, val) => sum + val, 0) / dayData.length;
+                                
+                                return (
+                                  <div key={dayIndex} className="flex-1 flex flex-col items-center gap-1">
+                                    <div 
+                                      className="w-full bg-gradient-to-t from-amber-400/20 to-amber-400/60 rounded-t relative group"
+                                      style={{ height: `${Math.min((avgValue / 120) * 100, 100)}%` }}
+                                    >
+                                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 bg-background border border-muted px-1.5 py-0.5 rounded text-xs opacity-0 group-hover:opacity-100 whitespace-nowrap">
+                                        {avgValue.toFixed(1)} μg/m³
+                                      </div>
+                                    </div>
+                                    <span className="text-xs text-muted-foreground">
+                                      {new Date(
+                                        new Date(airQualityApiData.hourly.time[startIdx]).getTime() + dayIndex * 86400000
+                                      ).toLocaleDateString(undefined, { weekday: 'short' })}
+                                    </span>
+                                  </div>
+                                );
+                              }) :
+                              Array.from({ length: 5 }, (_, i) => (
+                                <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                                  <div 
+                                    className="w-full bg-gradient-to-t from-amber-400/20 to-amber-400/60 rounded-t"
+                                    style={{ height: `${Math.random() * 80 + 10}%` }}
+                                  ></div>
+                                  <span className="text-xs text-muted-foreground">
+                                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri'][i]}
+                                  </span>
+                                </div>
+                              ))
+                            }
+                          </div>
                         </div>
                       </div>
                     </CardContent>
@@ -889,18 +1494,26 @@ export default function AIAlertsPage() {
                 <div className="flex flex-col gap-6">
                   <Card className="border-0 shadow-none bg-transparent">
                     <CardHeader className="pb-2">
-                      <CardTitle>Trend Insights</CardTitle>
+                      <CardTitle>Air Quality Forecast</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="glassmorphism p-4 rounded-lg space-y-4">
                         <div className="flex items-center gap-2">
                           <BarChart3 className="h-5 w-5 text-neon-blue" />
-                          <h3 className="font-medium">24-Hour Analysis</h3>
+                          <h3 className="font-medium">5-Day Analysis</h3>
                         </div>
 
                         <p className="text-sm text-muted-foreground">
-                          Air quality has remained stable with minor fluctuations within normal ranges. Marine
-                          conditions show a gradual increase in wave height over the past 6 hours.
+                          {airQualityApiData ? 
+                            `Air quality in ${selectedCity.name} is expected to remain at ${
+                              airQualityApiData.current.european_aqi <= 20 ? "good" :
+                              airQualityApiData.current.european_aqi <= 40 ? "fair" :
+                              airQualityApiData.current.european_aqi <= 60 ? "moderate" :
+                              airQualityApiData.current.european_aqi <= 80 ? "poor" :
+                              "very poor"
+                            } levels for the next few days, with some fluctuations in pollutant concentrations throughout the day.` :
+                            "Air quality forecast based on current conditions and weather patterns. Pollution levels may vary based on local conditions and emissions."
+                          }
                         </p>
 
                         <div className="pt-3 border-t border-muted/20">
@@ -908,15 +1521,15 @@ export default function AIAlertsPage() {
                           <ul className="text-xs space-y-2">
                             <li className="flex items-start gap-2">
                               <span className="text-neon-blue">•</span>
-                              <span>PM2.5 levels peak during morning rush hour (7-9 AM)</span>
+                              <span>PM2.5 levels tend to peak during morning rush hour (7-9 AM)</span>
                             </li>
                             <li className="flex items-start gap-2">
                               <span className="text-neon-blue">•</span>
-                              <span>Wave height correlates with wind speed patterns</span>
+                              <span>Ozone concentrations are highest during midday when UV levels peak</span>
                             </li>
                             <li className="flex items-start gap-2">
-                              <span className="text-red-400">•</span>
-                              <span>Anomaly detected in CO2 readings at 14:30</span>
+                              <span className="text-neon-blue">•</span>
+                              <span>Nitrogen dioxide (NO2) correlates with traffic patterns</span>
                             </li>
                           </ul>
                         </div>
@@ -926,48 +1539,84 @@ export default function AIAlertsPage() {
 
                   <Card className="border-0 shadow-none bg-transparent">
                     <CardHeader className="pb-2">
-                      <CardTitle>Forecast</CardTitle>
+                      <CardTitle>Health Impact Forecast</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="glassmorphism p-4 rounded-lg space-y-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <RefreshCw className="h-5 w-5 text-neon-orange" />
-                            <h3 className="font-medium">AI Prediction</h3>
+                            <h3 className="font-medium">Health Risk Levels</h3>
                           </div>
                           <Badge variant="outline" className="bg-neon-blue/20 text-neon-blue">
-                            Next 24h
+                            Next 5 Days
                           </Badge>
                         </div>
 
                         <div className="space-y-3">
                           <div>
                             <div className="flex justify-between mb-1 text-sm">
-                              <span>Air Quality</span>
-                              <span className="text-yellow-400">Moderate</span>
+                              <span>General Population</span>
+                              <span className={
+                                airQualityApiData && airQualityApiData.current.european_aqi <= 40 ? "text-green-400" :
+                                airQualityApiData && airQualityApiData.current.european_aqi <= 60 ? "text-yellow-400" :
+                                "text-orange-400"
+                              }>
+                                {airQualityApiData && airQualityApiData.current.european_aqi <= 40 ? "Low Risk" :
+                                 airQualityApiData && airQualityApiData.current.european_aqi <= 60 ? "Moderate Risk" :
+                                 "Elevated Risk"}
+                              </span>
                             </div>
-                            <Progress value={65} className="h-2" />
+                            <Progress value={
+                              airQualityApiData ? 
+                                Math.min((airQualityApiData.current.european_aqi / 100) * 100, 100) : 
+                                45
+                            } className="h-2" />
                           </div>
                           <div>
                             <div className="flex justify-between mb-1 text-sm">
-                              <span>Wave Conditions</span>
-                              <span className="text-blue-400">Increasing</span>
+                              <span>Sensitive Groups</span>
+                              <span className={
+                                airQualityApiData && airQualityApiData.current.european_aqi <= 20 ? "text-green-400" :
+                                airQualityApiData && airQualityApiData.current.european_aqi <= 40 ? "text-yellow-400" :
+                                "text-red-400"
+                              }>
+                                {airQualityApiData && airQualityApiData.current.european_aqi <= 20 ? "Low Risk" :
+                                 airQualityApiData && airQualityApiData.current.european_aqi <= 40 ? "Moderate Risk" :
+                                 "High Risk"}
+                              </span>
                             </div>
-                            <Progress value={70} className="h-2" />
+                            <Progress value={
+                              airQualityApiData ? 
+                                Math.min((airQualityApiData.current.european_aqi / 80) * 100, 100) : 
+                                65
+                            } className="h-2" />
                           </div>
                           <div>
                             <div className="flex justify-between mb-1 text-sm">
-                              <span>Anomaly Probability</span>
-                              <span className="text-green-400">Low</span>
+                              <span>Pollen Sensitivity</span>
+                              <span className={
+                                airQualityApiData && airQualityApiData.current.birch_pollen <= 1 ? "text-green-400" :
+                                airQualityApiData && airQualityApiData.current.birch_pollen <= 10 ? "text-yellow-400" :
+                                "text-orange-400"
+                              }>
+                                {airQualityApiData && airQualityApiData.current.birch_pollen <= 1 ? "Low Risk" :
+                                 airQualityApiData && airQualityApiData.current.birch_pollen <= 10 ? "Moderate Risk" :
+                                 "High Risk"}
+                              </span>
                             </div>
-                            <Progress value={25} className="h-2" />
+                            <Progress value={
+                              airQualityApiData ? 
+                                Math.min((airQualityApiData.current.birch_pollen / 20) * 100, 100) : 
+                                25
+                            } className="h-2" />
                           </div>
                         </div>
 
                         <div className="pt-2 border-t border-muted/20 text-xs text-muted-foreground">
                           <p>
-                            Forecast based on historical patterns, weather predictions, and sensor data.
-                            <span className="text-neon-blue ml-1">95% confidence</span>
+                            Risk assessment based on current air quality data and forecasted trends.
+                            <span className="text-neon-blue ml-1">Updated hourly</span>
                           </p>
                         </div>
                       </div>

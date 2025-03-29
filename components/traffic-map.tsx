@@ -1,46 +1,44 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import maplibregl from "maplibre-gl"
-import "maplibre-gl/dist/maplibre-gl.css"
+import tt from "@tomtom-international/web-sdk-maps"
+import * as ttServices from "@tomtom-international/web-sdk-services"
 
-// TomTom API key
 const TOMTOM_API_KEY = "ItW9AxUQxsOwuOxriWGp1kEID5r6ptrQ"
+const VASAI_WEST_COORDINATES = {
+  lat: 19.3919,
+  lng: 72.8397
+}
 
 interface TrafficMapProps {
   className?: string
 }
 
-const TrafficMap = ({ className }: TrafficMapProps) => {
+export default function TrafficMap({ className = "" }: TrafficMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
-  const map = useRef<maplibregl.Map | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [mapLoaded, setMapLoaded] = useState(false)
+  const map = useRef<tt.Map | null>(null)
   const [startPoint, setStartPoint] = useState<[number, number] | null>(null)
   const [endPoint, setEndPoint] = useState<[number, number] | null>(null)
 
   useEffect(() => {
     if (!mapContainer.current) return
 
-    // Initialize map with a Google Maps-like style
-    map.current = new maplibregl.Map({
+    // Initialize map
+    map.current = tt.map({
+      key: TOMTOM_API_KEY,
       container: mapContainer.current,
-      style: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
-      center: [72.816101, 19.366636], // Mumbai coordinates
-      zoom: 13, // Adjusted zoom level for better city view
-      attributionControl: false
+      center: [VASAI_WEST_COORDINATES.lng, VASAI_WEST_COORDINATES.lat],
+      zoom: 13,
+      language: "en-GB",
     })
 
-    // Add navigation controls
-    map.current.addControl(new maplibregl.NavigationControl(), "top-right")
-
-    // Add click handler for route points
+    // Add traffic flow layer
     map.current.on("load", () => {
       if (!map.current) return
 
-      // Add TomTom traffic layer
-      map.current.addSource("traffic", {
-        type: "raster",
+      // Add traffic flow layer using raster tiles
+      map.current.addSource('traffic', {
+        type: 'raster',
         tiles: [
           `https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${TOMTOM_API_KEY}`
         ],
@@ -48,16 +46,16 @@ const TrafficMap = ({ className }: TrafficMapProps) => {
       })
 
       map.current.addLayer({
-        id: "traffic-layer",
-        type: "raster",
-        source: "traffic",
+        id: 'traffic-layer',
+        type: 'raster',
+        source: 'traffic',
         paint: {
-          "raster-opacity": 0.7
+          'raster-opacity': 0.7
         }
       })
 
       // Add click handler for route points
-      map.current.on("click", (e) => {
+      map.current.on('click', (e) => {
         if (!startPoint) {
           setStartPoint([e.lngLat.lng, e.lngLat.lat])
         } else if (!endPoint) {
@@ -67,13 +65,8 @@ const TrafficMap = ({ className }: TrafficMapProps) => {
         }
       })
 
-      setMapLoaded(true)
-    })
-
-    // Handle errors
-    map.current.on("error", (e) => {
-      console.error("Map error:", e)
-      setError("Failed to load map. Please try again later.")
+      // Add navigation controls
+      map.current.addControl(new tt.NavigationControl(), 'top-right')
     })
 
     // Cleanup
@@ -83,7 +76,7 @@ const TrafficMap = ({ className }: TrafficMapProps) => {
         map.current = null
       }
     }
-  }, [])
+  }, [startPoint, endPoint])
 
   const calculateRoute = async (start: [number, number], end: [number, number]) => {
     try {
@@ -92,7 +85,7 @@ const TrafficMap = ({ className }: TrafficMapProps) => {
       )
       const data = await response.json()
 
-      if (data.code === "Ok" && data.routes && data.routes[0]) {
+      if (data.code === 'Ok' && data.routes && data.routes[0]) {
         const route = data.routes[0]
         const distance = (route.distance / 1000).toFixed(2) // Convert to km
         const duration = Math.round(route.duration / 60) // Convert to minutes
@@ -100,33 +93,34 @@ const TrafficMap = ({ className }: TrafficMapProps) => {
         // Add route to map
         if (map.current) {
           // Remove existing route layer if it exists
-          if (map.current.getLayer("route")) {
-            map.current.removeLayer("route")
+          if (map.current.getLayer('route')) {
+            map.current.removeLayer('route')
           }
-          if (map.current.getSource("route")) {
-            map.current.removeSource("route")
+          if (map.current.getSource('route')) {
+            map.current.removeSource('route')
           }
 
+          // Add new route layer
           map.current.addLayer({
-            "id": "route",
-            "type": "line",
-            "source": {
-              "type": "geojson",
-              "data": route.geometry
+            'id': 'route',
+            'type': 'line',
+            'source': {
+              'type': 'geojson',
+              'data': route.geometry
             },
-            "layout": {
-              "line-join": "round",
-              "line-cap": "round"
+            'layout': {
+              'line-join': 'round',
+              'line-cap': 'round'
             },
-            "paint": {
-              "line-color": "#4285F4", // Google Maps blue
-              "line-width": 4,
-              "line-opacity": 0.8
+            'paint': {
+              'line-color': '#4285F4',
+              'line-width': 4,
+              'line-opacity': 0.8
             }
           })
 
           // Add popup with route info
-          new maplibregl.Popup()
+          new tt.Popup()
             .setLngLat(start)
             .setHTML(`
               <div class="text-sm bg-white p-2 rounded shadow">
@@ -139,32 +133,21 @@ const TrafficMap = ({ className }: TrafficMapProps) => {
         }
       }
     } catch (error) {
-      console.error("Error calculating route:", error)
-      setError("Failed to calculate route. Please try again.")
+      console.error('Error calculating route:', error)
     }
-  }
-
-  if (error) {
-    return (
-      <div className={`bg-muted rounded-lg p-4 text-center ${className}`}>
-        <p className="text-red-500">{error}</p>
-      </div>
-    )
   }
 
   return (
     <div className="relative">
       <div 
         ref={mapContainer} 
-        className={`w-full h-[600px] rounded-lg ${className}`}
+        className={`w-full h-[600px] ${className}`}
       />
-      <div className="absolute top-4 left-4 bg-white/80 backdrop-blur-sm p-2 rounded shadow-lg z-10">
-        <p className="text-sm font-medium">
-          {!startPoint ? "Click to set start point" : !endPoint ? "Click to set end point" : "Route calculated"}
+      <div className="absolute top-4 left-4 bg-white p-2 rounded shadow-lg">
+        <p className="text-sm">
+          {!startPoint ? 'Click to set start point' : 'Click to set end point'}
         </p>
       </div>
     </div>
   )
 }
-
-export default TrafficMap

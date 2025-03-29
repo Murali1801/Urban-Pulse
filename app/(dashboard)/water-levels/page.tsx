@@ -664,15 +664,15 @@ export default function WaterLevelsPage() {
                               <h3 className="text-lg font-medium">Current Velocity</h3>
                               <div className="text-3xl font-bold my-3">
                                 {marineData ? `${marineData.current.ocean_current_velocity.toFixed(1)} km/h` : "N/A"}
-                              </div>
+                        </div>
                               <div className="inline-block px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-400 text-sm">
                                 {marineData?.current?.ocean_current_velocity !== undefined ? 
                                   (marineData.current.ocean_current_velocity < 0.5 ? "Calm" : 
                                    marineData.current.ocean_current_velocity < 1.5 ? "Mild" : "Strong")
                                   : "N/A"}
-                              </div>
-                            </div>
-                          </div>
+                      </div>
+                        </div>
+                      </div>
 
                           <div className="flex-1">
                             <div className="text-center mb-4">
@@ -691,15 +691,15 @@ export default function WaterLevelsPage() {
                                   <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 text-xs">S</div>
                                   <div className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 text-xs">W</div>
                                   <div className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 text-xs">E</div>
-                                </div>
-                              </div>
+                        </div>
+                      </div>
                               <div className="text-sm">
                                 {marineData ? `${marineData.current.ocean_current_direction}° ${formatWaveDirection(marineData.current.ocean_current_direction)}` : "N/A"}
                               </div>
                             </div>
-                          </div>
                         </div>
                       </div>
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -730,9 +730,9 @@ export default function WaterLevelsPage() {
                                 }
                               >
                                 {marineData?.current?.wind_wave_height && marineData.current.wind_wave_height > 0.3 ? "Choppy" : "Calm"}
-                            </Badge>
+                        </Badge>
                             </div>
-                          </div>
+                      </div>
 
                           <div className="glassmorphism p-4 rounded-lg">
                             <h3 className="text-sm font-medium mb-2">Wind Wave Direction</h3>
