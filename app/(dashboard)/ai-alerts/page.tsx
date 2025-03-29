@@ -181,7 +181,7 @@ export default function AIAlertsPage() {
 
   // New states for city search and air quality data
   const [cityInput, setCityInput] = useState("")
-  const [selectedCity, setSelectedCity] = useState({ name: "Berlin", lat: 52.52, lon: 13.41 })
+  const [selectedCity, setSelectedCity] = useState({ name: "Vasai West", lat: 19.35, lon: 72.82 })
   const [airQualityApiData, setAirQualityApiData] = useState<AirQualityData | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -511,7 +511,7 @@ export default function AIAlertsPage() {
                     {predictionResult !== null && (
                       <div className="my-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
                         <div className="font-medium text-green-400 mb-1">Prediction Result:</div>
-                        <div className="text-xl">PM2.5: {predictionResult.toFixed(2)} μg/m³</div>
+                        <div className="text-xl">PM2.5: {predictionResult?.toFixed(2)} μg/m³</div>
                         <div className="mt-2 text-xs text-green-400/70">
                           This prediction is based on the parameters you provided above.
                     </div>
@@ -593,7 +593,7 @@ export default function AIAlertsPage() {
                     <div>
                       <h3 className="text-lg font-medium">{selectedCity.name}</h3>
                       <p className="text-xs text-muted-foreground">
-                        Lat: {selectedCity.lat.toFixed(4)}, Lon: {selectedCity.lon.toFixed(4)}
+                        Lat: {selectedCity.lat?.toFixed(4)}, Lon: {selectedCity.lon?.toFixed(4)}
                       </p>
                     </div>
                   </div>
@@ -665,7 +665,7 @@ export default function AIAlertsPage() {
                           </div>
                           <div className="flex items-baseline gap-2">
                             <span className="text-2xl font-semibold">
-                              {airQualityApiData ? airQualityApiData.current.pm2_5.toFixed(1) : airQualityData.pm25}
+                              {airQualityApiData ? airQualityApiData.current.pm2_5?.toFixed(1) : airQualityData.pm25}
                             </span>
                             <span className="text-xs text-muted-foreground">μg/m³</span>
                           </div>
@@ -680,7 +680,7 @@ export default function AIAlertsPage() {
                           </div>
                           <div className="flex items-baseline gap-2">
                             <span className="text-2xl font-semibold">
-                              {airQualityApiData ? airQualityApiData.current.pm10.toFixed(1) : airQualityData.pm10}
+                              {airQualityApiData ? airQualityApiData.current.pm10?.toFixed(1) : airQualityData.pm10}
                             </span>
                             <span className="text-xs text-muted-foreground">μg/m³</span>
                           </div>
@@ -711,7 +711,7 @@ export default function AIAlertsPage() {
                           </div>
                           <div className="flex items-baseline gap-2">
                             <span className="text-2xl font-semibold">
-                              {airQualityApiData ? airQualityApiData.current.ozone.toFixed(1) : "35.0"}
+                              {airQualityApiData ? airQualityApiData.current.ozone?.toFixed(1) : "35.0"}
                             </span>
                             <span className="text-xs text-muted-foreground">μg/m³</span>
                           </div>
@@ -787,7 +787,7 @@ export default function AIAlertsPage() {
                           </div>
                           <div className="flex items-baseline gap-2">
                             <span className="text-2xl font-semibold">
-                              {airQualityApiData ? airQualityApiData.current.nitrogen_dioxide.toFixed(1) : "12.8"}
+                              {airQualityApiData ? airQualityApiData.current.nitrogen_dioxide?.toFixed(1) : "12.8"}
                             </span>
                             <span className="text-xs text-muted-foreground">μg/m³</span>
                           </div>
@@ -802,7 +802,7 @@ export default function AIAlertsPage() {
                           </div>
                           <div className="flex items-baseline gap-2">
                             <span className="text-2xl font-semibold">
-                              {airQualityApiData ? airQualityApiData.current.sulphur_dioxide.toFixed(1) : "2.5"}
+                              {airQualityApiData ? airQualityApiData.current.sulphur_dioxide?.toFixed(1) : "2.5"}
                             </span>
                             <span className="text-xs text-muted-foreground">μg/m³</span>
                           </div>
@@ -817,7 +817,7 @@ export default function AIAlertsPage() {
                           </div>
                           <div className="flex items-baseline gap-2">
                             <span className="text-2xl font-semibold">
-                              {airQualityApiData ? airQualityApiData.current.carbon_monoxide.toFixed(1) : "215.0"}
+                              {airQualityApiData ? airQualityApiData.current.carbon_monoxide?.toFixed(1) : "215.0"}
                             </span>
                             <span className="text-xs text-muted-foreground">μg/m³</span>
                           </div>
@@ -832,7 +832,7 @@ export default function AIAlertsPage() {
                           </div>
                           <div className="flex items-baseline gap-2">
                             <span className="text-2xl font-semibold">
-                              {airQualityApiData ? airQualityApiData.current.ammonia.toFixed(1) : "1.8"}
+                              {airQualityApiData ? airQualityApiData.current.ammonia?.toFixed(1) : "1.8"}
                             </span>
                             <span className="text-xs text-muted-foreground">μg/m³</span>
                           </div>
@@ -911,7 +911,7 @@ export default function AIAlertsPage() {
                             </div>
                             <div className="flex items-baseline gap-2">
                               <span className="text-2xl font-semibold">
-                                {airQualityApiData ? airQualityApiData.current.alder_pollen.toFixed(1) : "0.0"}
+                                {airQualityApiData ? airQualityApiData.current.alder_pollen?.toFixed(1) : "0.0"}
                               </span>
                               <span className="text-xs text-muted-foreground">grains/m³</span>
                             </div>
@@ -926,7 +926,7 @@ export default function AIAlertsPage() {
                             </div>
                             <div className="flex items-baseline gap-2">
                               <span className="text-2xl font-semibold">
-                                {airQualityApiData ? airQualityApiData.current.birch_pollen.toFixed(1) : "2.8"}
+                                {airQualityApiData ? airQualityApiData.current.birch_pollen?.toFixed(1) : "2.8"}
                               </span>
                               <span className="text-xs text-muted-foreground">grains/m³</span>
                             </div>
@@ -941,7 +941,7 @@ export default function AIAlertsPage() {
                             </div>
                             <div className="flex items-baseline gap-2">
                               <span className="text-2xl font-semibold">
-                                {airQualityApiData ? airQualityApiData.current.grass_pollen.toFixed(1) : "0.0"}
+                                {airQualityApiData ? airQualityApiData.current.grass_pollen?.toFixed(1) : "0.0"}
                               </span>
                               <span className="text-xs text-muted-foreground">grains/m³</span>
                             </div>
@@ -956,7 +956,7 @@ export default function AIAlertsPage() {
                             </div>
                             <div className="flex items-baseline gap-2">
                               <span className="text-2xl font-semibold">
-                                {airQualityApiData ? airQualityApiData.current.mugwort_pollen.toFixed(1) : "0.0"}
+                                {airQualityApiData ? airQualityApiData.current.mugwort_pollen?.toFixed(1) : "0.0"}
                               </span>
                               <span className="text-xs text-muted-foreground">grains/m³</span>
                             </div>
@@ -971,7 +971,7 @@ export default function AIAlertsPage() {
                             </div>
                             <div className="flex items-baseline gap-2">
                               <span className="text-2xl font-semibold">
-                                {airQualityApiData ? airQualityApiData.current.olive_pollen.toFixed(1) : "0.0"}
+                                {airQualityApiData ? airQualityApiData.current.olive_pollen?.toFixed(1) : "0.0"}
                               </span>
                               <span className="text-xs text-muted-foreground">grains/m³</span>
                             </div>
@@ -986,7 +986,7 @@ export default function AIAlertsPage() {
                             </div>
                             <div className="flex items-baseline gap-2">
                               <span className="text-2xl font-semibold">
-                                {airQualityApiData ? airQualityApiData.current.ragweed_pollen.toFixed(1) : "0.0"}
+                                {airQualityApiData ? airQualityApiData.current.ragweed_pollen?.toFixed(1) : "0.0"}
                               </span>
                               <span className="text-xs text-muted-foreground">grains/m³</span>
                             </div>
@@ -1414,8 +1414,8 @@ export default function AIAlertsPage() {
                               // Group by day and show average for 5 days
                               Array.from({ length: 5 }, (_, dayIndex) => {
                                 const startIdx = dayIndex * 24;
-                                const dayData = airQualityApiData.hourly.pm2_5.slice(startIdx, startIdx + 24);
-                                const avgValue = dayData.reduce((sum, val) => sum + val, 0) / dayData.length;
+                                const dayData = airQualityApiData?.hourly?.pm2_5?.slice(startIdx, startIdx + 24) || [];
+                                const avgValue = dayData.length > 0 ? dayData.reduce((sum, val) => sum + (val || 0), 0) / dayData.length : 0;
                                 
                                 return (
                                   <div key={dayIndex} className="flex-1 flex flex-col items-center gap-1">
@@ -1424,12 +1424,12 @@ export default function AIAlertsPage() {
                                       style={{ height: `${Math.min((avgValue / 50) * 100, 100)}%` }}
                                     >
                                       <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 bg-background border border-muted px-1.5 py-0.5 rounded text-xs opacity-0 group-hover:opacity-100 whitespace-nowrap">
-                                        {avgValue.toFixed(1)} μg/m³
+                                        {avgValue?.toFixed(1)} μg/m³
                                       </div>
                                     </div>
                                     <span className="text-xs text-muted-foreground">
                                       {new Date(
-                                        new Date(airQualityApiData.hourly.time[startIdx]).getTime() + dayIndex * 86400000
+                                        new Date(airQualityApiData?.hourly?.time?.[startIdx] || Date.now()).getTime() + dayIndex * 86400000
                                       ).toLocaleDateString(undefined, { weekday: 'short' })}
                                     </span>
                                   </div>
@@ -1460,8 +1460,8 @@ export default function AIAlertsPage() {
                               // Group by day and show average for 5 days
                               Array.from({ length: 5 }, (_, dayIndex) => {
                                 const startIdx = dayIndex * 24;
-                                const dayData = airQualityApiData.hourly.ozone.slice(startIdx, startIdx + 24);
-                                const avgValue = dayData.reduce((sum, val) => sum + val, 0) / dayData.length;
+                                const dayData = airQualityApiData?.hourly?.ozone?.slice(startIdx, startIdx + 24) || [];
+                                const avgValue = dayData.length > 0 ? dayData.reduce((sum, val) => sum + (val || 0), 0) / dayData.length : 0;
                                 
                                 return (
                                   <div key={dayIndex} className="flex-1 flex flex-col items-center gap-1">
@@ -1470,12 +1470,12 @@ export default function AIAlertsPage() {
                                       style={{ height: `${Math.min((avgValue / 120) * 100, 100)}%` }}
                                     >
                                       <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 bg-background border border-muted px-1.5 py-0.5 rounded text-xs opacity-0 group-hover:opacity-100 whitespace-nowrap">
-                                        {avgValue.toFixed(1)} μg/m³
+                                        {avgValue?.toFixed(1)} μg/m³
                                       </div>
                                     </div>
                                     <span className="text-xs text-muted-foreground">
                                       {new Date(
-                                        new Date(airQualityApiData.hourly.time[startIdx]).getTime() + dayIndex * 86400000
+                                        new Date(airQualityApiData?.hourly?.time?.[startIdx] || Date.now()).getTime() + dayIndex * 86400000
                                       ).toLocaleDateString(undefined, { weekday: 'short' })}
                                     </span>
                                   </div>
@@ -1506,8 +1506,8 @@ export default function AIAlertsPage() {
                               // Group by day and show average for 5 days
                               Array.from({ length: 5 }, (_, dayIndex) => {
                                 const startIdx = dayIndex * 24;
-                                const dayData = airQualityApiData.hourly.nitrogen_dioxide.slice(startIdx, startIdx + 24);
-                                const avgValue = dayData.reduce((sum, val) => sum + val, 0) / dayData.length;
+                                const dayData = airQualityApiData?.hourly?.nitrogen_dioxide?.slice(startIdx, startIdx + 24) || [];
+                                const avgValue = dayData.length > 0 ? dayData.reduce((sum, val) => sum + (val || 0), 0) / dayData.length : 0;
                                 
                                 return (
                                   <div key={dayIndex} className="flex-1 flex flex-col items-center gap-1">
@@ -1516,12 +1516,12 @@ export default function AIAlertsPage() {
                                       style={{ height: `${Math.min((avgValue / 120) * 100, 100)}%` }}
                                     >
                                       <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1 bg-background border border-muted px-1.5 py-0.5 rounded text-xs opacity-0 group-hover:opacity-100 whitespace-nowrap">
-                                        {avgValue.toFixed(1)} μg/m³
+                                        {avgValue?.toFixed(1)} μg/m³
                                       </div>
                                     </div>
                                     <span className="text-xs text-muted-foreground">
                                       {new Date(
-                                        new Date(airQualityApiData.hourly.time[startIdx]).getTime() + dayIndex * 86400000
+                                        new Date(airQualityApiData?.hourly?.time?.[startIdx] || Date.now()).getTime() + dayIndex * 86400000
                                       ).toLocaleDateString(undefined, { weekday: 'short' })}
                                     </span>
                                   </div>

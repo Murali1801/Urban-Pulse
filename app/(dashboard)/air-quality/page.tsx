@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
-import { Wind, Info, BarChart3, MapPin, Calendar, TrendingUp, TrendingDown } from "lucide-react"
+import { Wind, Info, BarChart3, MapPin, Calendar, TrendingUp, TrendingDown, Check, Search } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { HeatmapVisualization } from "@/components/heatmap-visualization"
 import { VasaiMap } from "@/components/vasai-map"
-import { CitySearch } from "@/components/city-search"
+import { Input } from "@/components/ui/input"
 
 // Types for the API response
 interface AirQualityData {
@@ -140,49 +140,159 @@ const defaultVasaiData: NormalizedAirQualityData = {
     name: "Vasai West",
     geo: [19.3919, 72.8266]
   },
-  aqi: 35,
+  aqi: 62,
   pollutants: {
-    pm25: 15.2,
-    pm10: 27.6,
-    o3: 42.8,
-    no2: 12.5,
-    so2: 3.8,
-    co: 230.0
+    pm25: 28.5,
+    pm10: 45.7,
+    o3: 52.3,
+    no2: 18.6,
+    so2: 5.2,
+    co: 420.0
   },
   time: {
     iso: new Date().toISOString()
   },
   pollen: {
-    alder: 0.2,
-    birch: 1.5,
-    grass: 0.5,
-    mugwort: 0.1,
-    olive: 0.0,
-    ragweed: 0.0
+    alder: 0.4,
+    birch: 2.3,
+    grass: 1.7,
+    mugwort: 0.3,
+    olive: 0.1,
+    ragweed: 0.2
   },
   uv: {
-    index: 3.2,
-    clearSky: 4.5
+    index: 7.8,
+    clearSky: 8.5
   },
-  dust: 2.1,
-  aerosol: 0.23,
+  dust: 8.5,
+  aerosol: 0.38,
   forecast: {
     hourly: {
-      pm25: Array.from({ length: 24 }, (_, i) => ({
-        time: new Date(Date.now() + i * 3600 * 1000).toISOString(),
-        value: 15 + Math.sin(i / 4) * 3
-      })),
-      pm10: Array.from({ length: 24 }, (_, i) => ({
-        time: new Date(Date.now() + i * 3600 * 1000).toISOString(),
-        value: 25 + Math.sin(i / 4) * 5
-      })),
-      o3: Array.from({ length: 24 }, (_, i) => ({
-        time: new Date(Date.now() + i * 3600 * 1000).toISOString(),
-        value: 40 + Math.sin(i / 4) * 8
-      }))
+      pm25: Array.from({ length: 24 }, (_, i) => {
+        // Create a realistic daily pattern with higher values during morning/evening rush hours
+        const hour = new Date(Date.now() + i * 3600 * 1000).getHours();
+        let baseValue = 28.5;
+        
+        // Morning rush hour (7-10 AM)
+        if (hour >= 7 && hour <= 10) {
+          baseValue += 15;
+        }
+        // Evening rush hour (5-8 PM)
+        else if (hour >= 17 && hour <= 20) {
+          baseValue += 18;
+        }
+        // Night time (reduced pollution)
+        else if (hour >= 0 && hour <= 5) {
+          baseValue -= 10;
+        }
+        
+        // Add some random variation
+        const variation = Math.sin(i / 4) * 5 + (Math.random() * 4 - 2);
+        
+        return {
+          time: new Date(Date.now() + i * 3600 * 1000).toISOString(),
+          value: Math.max(5, baseValue + variation) // Ensure no negative values
+        };
+      }),
+      pm10: Array.from({ length: 24 }, (_, i) => {
+        // Create a realistic daily pattern with higher values during morning/evening rush hours
+        const hour = new Date(Date.now() + i * 3600 * 1000).getHours();
+        let baseValue = 45.7;
+        
+        // Morning rush hour
+        if (hour >= 7 && hour <= 10) {
+          baseValue += 20;
+        }
+        // Evening rush hour
+        else if (hour >= 17 && hour <= 20) {
+          baseValue += 25;
+        }
+        // Night time (reduced pollution)
+        else if (hour >= 0 && hour <= 5) {
+          baseValue -= 15;
+        }
+        
+        // Add some random variation
+        const variation = Math.sin(i / 4) * 8 + (Math.random() * 6 - 3);
+        
+        return {
+          time: new Date(Date.now() + i * 3600 * 1000).toISOString(),
+          value: Math.max(10, baseValue + variation) // Ensure no negative values
+        };
+      }),
+      o3: Array.from({ length: 24 }, (_, i) => {
+        // Create a realistic daily pattern with higher values during midday due to sunlight
+        const hour = new Date(Date.now() + i * 3600 * 1000).getHours();
+        let baseValue = 52.3;
+        
+        // Midday peak (11 AM - 3 PM)
+        if (hour >= 11 && hour <= 15) {
+          baseValue += 25;
+        }
+        // Evening/night (reduced ozone due to lack of sunlight)
+        else if (hour >= 19 || hour <= 5) {
+          baseValue -= 20;
+        }
+        
+        // Add some random variation
+        const variation = Math.sin(i / 4) * 10 + (Math.random() * 8 - 4);
+        
+        return {
+          time: new Date(Date.now() + i * 3600 * 1000).toISOString(),
+          value: Math.max(15, baseValue + variation) // Ensure no negative values
+        };
+      })
     }
   }
 };
+
+// Add this component directly in the air quality page file
+const CitySearch = ({ onCitySearch, isLoading = false, error = null }: { 
+  onCitySearch: (city: string) => void, 
+  isLoading?: boolean,
+  error?: string | null
+}) => {
+  const [searchInput, setSearchInput] = useState("")
+  
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (searchInput.trim()) {
+      onCitySearch(searchInput.trim())
+    }
+  }
+  
+  return (
+    <form onSubmit={handleSubmit} className="w-full flex flex-col gap-2">
+      <div className="flex w-full relative">
+        <Input 
+          type="text" 
+          placeholder="Search for a city..." 
+          className="flex-1 pr-24"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          disabled={isLoading}
+        />
+        <Button 
+          type="submit" 
+          className="absolute right-0 bg-gradient-to-r from-neon-blue to-neon-orange"
+          disabled={isLoading || !searchInput.trim()}
+        >
+          {isLoading ? (
+            <>
+              <Wind className="h-4 w-4 mr-2 animate-spin" />
+              Searching...
+            </>
+          ) : (
+            <>
+              <Search className="h-4 w-4 mr-2" />
+              Search
+            </>
+          )}
+        </Button>
+      </div>
+    </form>
+  )
+}
 
 export default function AirQualityPage() {
   const [selectedTab, setSelectedTab] = useState("dashboard")
@@ -193,7 +303,9 @@ export default function AirQualityPage() {
   const [borivaliData, setBorivaliData] = useState<NormalizedAirQualityData | null>(null)
   const [searchedCityData, setSearchedCityData] = useState<NormalizedAirQualityData | null>(null)
   const [loading, setLoading] = useState(false)
+  const [searchLoading, setSearchLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [searchError, setSearchError] = useState<string | null>(null)
 
   // Function to fetch city coordinates from a city name using Nominatim API
   const fetchCityCoordinates = async (city: string): Promise<{ lat: number; lon: number; display_name: string }> => {
@@ -275,10 +387,11 @@ export default function AirQualityPage() {
     }
   }
 
+  // Function to fetch air data and update state
   const fetchAirData = async (city: string) => {
     try {
-      setLoading(true)
-      setError(null)
+      setSearchLoading(true)
+      setSearchError(null)
 
       // First, get coordinates for the city
       const { lat, lon, display_name } = await fetchCityCoordinates(city)
@@ -297,13 +410,21 @@ export default function AirQualityPage() {
       // Normalize the data
       const normalizedData = normalizeAirQualityData(data, display_name.split(',')[0])
       
+      // Update data for searched city
       setSearchedCityData(normalizedData)
+      
+      // Update selected location to show the searched city data
         setSelectedLocation("searched")
-        setSelectedTab("dashboard")
+
+      // Reset any previous errors
+      setSearchError(null)
+
+      console.log("Fetched air quality data for:", normalizedData.city.name);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred while fetching air quality data")
+      console.error("Error fetching searched city data:", err);
+      setSearchError(err instanceof Error ? err.message : `An error occurred while fetching air quality data for "${city}"`)
     } finally {
-      setLoading(false)
+      setSearchLoading(false)
     }
   }
 
@@ -323,41 +444,51 @@ export default function AirQualityPage() {
 
         // Fetch data for all cities
         const fetchPromises = cities.map(async (city) => {
-          const response = await fetch(
-            `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${city.lat}&longitude=${city.lon}&current=european_aqi,us_aqi,pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone,aerosol_optical_depth,dust,uv_index,uv_index_clear_sky,ammonia,alder_pollen,birch_pollen,grass_pollen,mugwort_pollen,olive_pollen,ragweed_pollen&hourly=pm10,pm2_5,carbon_monoxide,carbon_dioxide,nitrogen_dioxide,sulphur_dioxide,ozone,aerosol_optical_depth,dust,uv_index,uv_index_clear_sky,ammonia,methane,alder_pollen,birch_pollen,grass_pollen,mugwort_pollen,olive_pollen,ragweed_pollen&timezone=auto`
-          )
-          
-          if (!response.ok) {
-            throw new Error(`Failed to fetch air quality data for ${city.name}`)
+          try {
+            const response = await fetch(
+              `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${city.lat}&longitude=${city.lon}&current=european_aqi,us_aqi,pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone,aerosol_optical_depth,dust,uv_index,uv_index_clear_sky,ammonia,alder_pollen,birch_pollen,grass_pollen,mugwort_pollen,olive_pollen,ragweed_pollen&hourly=pm10,pm2_5,carbon_monoxide,carbon_dioxide,nitrogen_dioxide,sulphur_dioxide,ozone,aerosol_optical_depth,dust,uv_index,uv_index_clear_sky,ammonia,methane,alder_pollen,birch_pollen,grass_pollen,mugwort_pollen,olive_pollen,ragweed_pollen&timezone=auto`
+            )
+            
+            if (!response.ok) {
+              throw new Error(`Failed to fetch air quality data for ${city.name}`)
+            }
+            
+            const data: OpenMeteoAirQualityData = await response.json()
+            return { city, data }
+          } catch (error) {
+            console.error(`Error fetching data for ${city.name}:`, error);
+            return { city, data: null };
           }
-          
-          const data: OpenMeteoAirQualityData = await response.json()
-          return { city, data }
         })
 
         const results = await Promise.all(fetchPromises)
         
         // Process the results
         for (const { city, data } of results) {
-          const normalizedData = normalizeAirQualityData(data, city.name)
-          
-          if (city.name === "Vasai West") {
-            setVasaiData(normalizedData)
-          } else if (city.name === "Mumbai") {
-            setMumbaiData(normalizedData)
-          } else if (city.name === "Malad West") {
-            setMaladData(normalizedData)
-          } else if (city.name === "Borivali East") {
-            setBorivaliData(normalizedData)
+          if (data) {
+            const normalizedData = normalizeAirQualityData(data, city.name)
+            
+            if (city.name === "Vasai West") {
+              setVasaiData(normalizedData)
+            } else if (city.name === "Mumbai") {
+              setMumbaiData(normalizedData)
+            } else if (city.name === "Malad West") {
+              setMaladData(normalizedData)
+            } else if (city.name === "Borivali East") {
+              setBorivaliData(normalizedData)
+            }
           }
         }
 
-        // If no data was successfully fetched, throw an error
+        // If no data was successfully fetched, use default data for Vasai
         if (!vasaiData && !mumbaiData && !maladData && !borivaliData) {
-          throw new Error("No air quality data available for any location")
+          setVasaiData(defaultVasaiData);
         }
       } catch (err) {
+        console.error("Error fetching air quality data:", err);
         setError(err instanceof Error ? err.message : "An error occurred while fetching air quality data")
+        // Use default data for Vasai in case of error
+        setVasaiData(defaultVasaiData);
       } finally {
         setLoading(false)
       }
@@ -510,7 +641,25 @@ export default function AirQualityPage() {
           </motion.div>
 
           <div className="mb-12">
-            <CitySearch onCitySearch={fetchAirData} />
+            <div className="w-full">
+              <CitySearch 
+                onCitySearch={fetchAirData} 
+                isLoading={searchLoading}
+                error={searchError}
+              />
+              {searchError && (
+                <div className="mt-2 flex items-center gap-2 text-sm text-red-400">
+                  <Info className="h-4 w-4" />
+                  <span>{searchError}</span>
+                </div>
+              )}
+              {selectedLocation === "searched" && searchedCityData && !searchLoading && !searchError && (
+                <div className="mt-2 flex items-center gap-2 text-sm text-green-400">
+                  <Check className="h-4 w-4" />
+                  <span>Showing data for {searchedCityData.city.name}</span>
+                </div>
+              )}
+            </div>
           </div>
 
           <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
@@ -519,7 +668,7 @@ export default function AirQualityPage() {
                 Dashboard
               </TabsTrigger>
               <TabsTrigger value="map" className="data-[state=active]:text-gradient">
-                Map View
+                Stats View
               </TabsTrigger>
               <TabsTrigger value="forecasts" className="data-[state=active]:text-gradient">
                 Forecasts
@@ -907,105 +1056,6 @@ export default function AirQualityPage() {
                     </div>
                     
                     <div className="glassmorphism p-4 rounded-xl">
-                      <h3 className="text-lg font-medium mb-4">Pollen Levels</h3>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-sm">Birch Pollen</span>
-                            <span className="text-xs font-medium">{currentData.pollen.birch.toFixed(1)} grains/m³</span>
-                          </div>
-                          <div className="h-2 w-full bg-muted/20 rounded-full overflow-hidden">
-                            <div 
-                              className={`h-full ${
-                                currentData.pollen.birch <= 1 ? "bg-green-400" :
-                                currentData.pollen.birch <= 10 ? "bg-yellow-400" :
-                                currentData.pollen.birch <= 50 ? "bg-orange-400" :
-                                "bg-red-400"
-                              }`}
-                              style={{ width: `${Math.min(currentData.pollen.birch / 100 * 100, 100)}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-sm">Grass Pollen</span>
-                            <span className="text-xs font-medium">{currentData.pollen.grass.toFixed(1)} grains/m³</span>
-                          </div>
-                          <div className="h-2 w-full bg-muted/20 rounded-full overflow-hidden">
-                            <div 
-                              className={`h-full ${
-                                currentData.pollen.grass <= 1 ? "bg-green-400" :
-                                currentData.pollen.grass <= 5 ? "bg-yellow-400" :
-                                currentData.pollen.grass <= 20 ? "bg-orange-400" :
-                                "bg-red-400"
-                              }`}
-                              style={{ width: `${Math.min(currentData.pollen.grass / 50 * 100, 100)}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-sm">Alder Pollen</span>
-                            <span className="text-xs font-medium">{currentData.pollen.alder.toFixed(1)} grains/m³</span>
-                          </div>
-                          <div className="h-2 w-full bg-muted/20 rounded-full overflow-hidden">
-                            <div 
-                              className={`h-full ${
-                                currentData.pollen.alder <= 1 ? "bg-green-400" :
-                                currentData.pollen.alder <= 10 ? "bg-yellow-400" :
-                                currentData.pollen.alder <= 50 ? "bg-orange-400" :
-                                "bg-red-400"
-                              }`}
-                              style={{ width: `${Math.min(currentData.pollen.alder / 100 * 100, 100)}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-sm">Ragweed Pollen</span>
-                            <span className="text-xs font-medium">{currentData.pollen.ragweed.toFixed(1)} grains/m³</span>
-                          </div>
-                          <div className="h-2 w-full bg-muted/20 rounded-full overflow-hidden">
-                            <div 
-                              className={`h-full ${
-                                currentData.pollen.ragweed <= 1 ? "bg-green-400" :
-                                currentData.pollen.ragweed <= 10 ? "bg-yellow-400" :
-                                currentData.pollen.ragweed <= 50 ? "bg-orange-400" :
-                                "bg-red-400"
-                              }`}
-                              style={{ width: `${Math.min(currentData.pollen.ragweed / 100 * 100, 100)}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="mt-4 text-xs text-muted-foreground">
-                        <div className="flex items-center justify-between mt-2">
-                          <div className="flex items-center gap-1">
-                            <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                            <span>Low</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="w-2 h-2 bg-yellow-400 rounded-full"></span>
-                            <span>Moderate</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="w-2 h-2 bg-orange-400 rounded-full"></span>
-                            <span>High</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="w-2 h-2 bg-red-400 rounded-full"></span>
-                            <span>Very High</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="glassmorphism p-4 rounded-xl">
                       <h3 className="text-lg font-medium mb-4">Additional Metrics</h3>
                       
                       <div className="space-y-4">
@@ -1148,6 +1198,12 @@ export default function AirQualityPage() {
                             <YAxis 
                               stroke="#9CA3AF"
                               tick={{ fill: '#9CA3AF' }}
+                              label={{ 
+                                value: 'µg/m³', 
+                                angle: -90, 
+                                position: 'insideLeft',
+                                style: { textAnchor: 'middle', fill: '#9CA3AF' }
+                              }}
                             />
                             <Tooltip 
                               contentStyle={{ 
@@ -1157,6 +1213,13 @@ export default function AirQualityPage() {
                                 color: '#9CA3AF'
                               }}
                               labelStyle={{ color: '#9CA3AF' }}
+                              formatter={(value, name) => [
+                                `${parseFloat(value.toString()).toFixed(1)} µg/m³`, 
+                                name === "PM25" ? "PM2.5" : 
+                                name === "PM10" ? "PM10" : 
+                                name === "O3" ? "Ozone" : 
+                                name
+                              ]}
                             />
                             <Line 
                               type="monotone" 
@@ -1164,6 +1227,7 @@ export default function AirQualityPage() {
                               stroke="#10B981" 
                               strokeWidth={2}
                               dot={{ fill: '#10B981', strokeWidth: 2 }}
+                              name="PM2.5"
                             />
                             <Line 
                               type="monotone" 
@@ -1171,6 +1235,7 @@ export default function AirQualityPage() {
                               stroke="#F59E0B" 
                               strokeWidth={2}
                               dot={{ fill: '#F59E0B', strokeWidth: 2 }}
+                              name="PM10"
                             />
                             <Line 
                               type="monotone" 
@@ -1178,6 +1243,7 @@ export default function AirQualityPage() {
                               stroke="#EF4444" 
                               strokeWidth={2}
                               dot={{ fill: '#EF4444', strokeWidth: 2 }}
+                              name="Ozone"
                             />
                           </LineChart>
                         </ResponsiveContainer>
@@ -1209,7 +1275,11 @@ export default function AirQualityPage() {
                           {hourlyChartData.length > 0 && hourlyChartData[0] && hourlyChartData[hourlyChartData.length - 1]
                             ? `Air quality is predicted to ${
                                 hourlyChartData[hourlyChartData.length - 1].PM25 > hourlyChartData[0].PM25 ? "worsen" : "improve"
-                              } over the next 24 hours.`
+                              } over the next 24 hours with ${
+                                hourlyChartData[hourlyChartData.length - 1].PM25 > hourlyChartData[0].PM25 
+                                  ? `an increase of ${(hourlyChartData[hourlyChartData.length - 1].PM25 - hourlyChartData[0].PM25).toFixed(1)}`
+                                  : `a decrease of ${(hourlyChartData[0].PM25 - hourlyChartData[hourlyChartData.length - 1].PM25).toFixed(1)}`
+                              } µg/m³ in PM2.5 levels.`
                             : "Forecast data unavailable"}
                         </p>
 
@@ -1219,20 +1289,58 @@ export default function AirQualityPage() {
                             {hourlyChartData[6] && (
                             <li className="flex items-start gap-2">
                               <span className="text-green-400">✓</span>
-                              <span>PM2.5 in 6 hours: {hourlyChartData[6].PM25.toFixed(1)} µg/m³</span>
+                              <span>PM2.5 in 6 hours: {hourlyChartData[6].PM25.toFixed(1)} µg/m³ ({
+                                hourlyChartData[6].PM25 > hourlyChartData[0].PM25 
+                                  ? `+${(hourlyChartData[6].PM25 - hourlyChartData[0].PM25).toFixed(1)}` 
+                                  : `-${(hourlyChartData[0].PM25 - hourlyChartData[6].PM25).toFixed(1)}`
+                              })</span>
                             </li>
                             )}
                             {hourlyChartData[12] && (
                             <li className="flex items-start gap-2">
                               <span className="text-yellow-400">!</span>
-                              <span>PM2.5 in 12 hours: {hourlyChartData[12].PM25.toFixed(1)} µg/m³</span>
+                              <span>PM2.5 in 12 hours: {hourlyChartData[12].PM25.toFixed(1)} µg/m³ ({
+                                hourlyChartData[12].PM25 > hourlyChartData[0].PM25 
+                                  ? `+${(hourlyChartData[12].PM25 - hourlyChartData[0].PM25).toFixed(1)}` 
+                                  : `-${(hourlyChartData[0].PM25 - hourlyChartData[12].PM25).toFixed(1)}`
+                              })</span>
                             </li>
                             )}
                             {hourlyChartData[23] && (
                             <li className="flex items-start gap-2">
                               <span className="text-blue-400">ℹ</span>
-                              <span>PM2.5 in 24 hours: {hourlyChartData[23].PM25.toFixed(1)} µg/m³</span>
+                              <span>PM2.5 in 24 hours: {hourlyChartData[23].PM25.toFixed(1)} µg/m³ ({
+                                hourlyChartData[23].PM25 > hourlyChartData[0].PM25 
+                                  ? `+${(hourlyChartData[23].PM25 - hourlyChartData[0].PM25).toFixed(1)}` 
+                                  : `-${(hourlyChartData[0].PM25 - hourlyChartData[23].PM25).toFixed(1)}`
+                              })</span>
                             </li>
+                            )}
+                          </ul>
+                        </div>
+
+                        <div className="border-t border-muted/20 pt-3">
+                          <h4 className="text-sm font-medium mb-2">Health Recommendations</h4>
+                          <ul className="text-xs space-y-2">
+                            {hourlyChartData.length > 0 && (
+                              <>
+                                {hourlyChartData.some(data => data.PM25 > 35) && (
+                                  <li className="flex items-start gap-2">
+                                    <span className="text-red-400">!</span>
+                                    <span>Consider using air purifiers when indoors as PM2.5 levels may exceed healthy limits</span>
+                                  </li>
+                                )}
+                                {hourlyChartData.some(data => data.O3 > 100) && (
+                                  <li className="flex items-start gap-2">
+                                    <span className="text-orange-400">!</span>
+                                    <span>Limit outdoor activities during peak ozone hours (usually midday to afternoon)</span>
+                                  </li>
+                                )}
+                                <li className="flex items-start gap-2">
+                                  <span className="text-neon-blue">ℹ</span>
+                                  <span>Stay updated with real-time air quality information before planning outdoor activities</span>
+                                </li>
+                              </>
                             )}
                           </ul>
                         </div>
@@ -1254,7 +1362,11 @@ export default function AirQualityPage() {
                           <p>
                             Data provided by Open-Meteo.com Air Quality API
                           </p>
-                          <Button className="w-full mt-2 bg-gradient-to-r from-neon-blue to-neon-orange">
+                          <p className="text-xs text-muted-foreground">
+                            Last updated: {currentData ? new Date(currentData.time.iso).toLocaleString() : 'N/A'}
+                          </p>
+                          <Button className="w-full mt-2 bg-gradient-to-r from-neon-blue to-neon-orange" 
+                            onClick={() => window.open('https://open-meteo.com/en/docs/air-quality-api', '_blank')}>
                             View Source
                           </Button>
                         </div>

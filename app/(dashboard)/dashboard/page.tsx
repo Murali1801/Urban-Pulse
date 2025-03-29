@@ -179,20 +179,20 @@ export default function DashboardPage() {
   })
   // Dynamic alerts based on real-time data
   const [alerts, setAlerts] = useState([
-    {
-      id: 2,
-      title: "Traffic Congestion",
-      message: "Major traffic jam on Highway 101, expect delays of 25+ minutes.",
-      time: "25 minutes ago",
-      level: "warning" as const,
-    },
-    {
-      id: 3,
-      title: "Air Quality Update",
-      message: "Air quality has improved by 15% in the central district.",
-      time: "1 hour ago",
-      level: "info" as const,
-    },
+  {
+    id: 2,
+    title: "Traffic Congestion",
+    message: "Major traffic jam on Highway 101, expect delays of 25+ minutes.",
+    time: "25 minutes ago",
+    level: "warning" as const,
+  },
+  {
+    id: 3,
+    title: "Air Quality Update",
+    message: "Air quality has improved by 15% in the central district.",
+    time: "1 hour ago",
+    level: "info" as const,
+  },
   ])
 
   // Function to fetch city coordinates from Nominatim API
@@ -413,7 +413,7 @@ export default function DashboardPage() {
     try {
       setLoading(true)
       setError(null)
-      
+
       // First, get coordinates for the city
       const coordinates = await fetchCityCoordinates(city)
       if (!coordinates) {
@@ -505,14 +505,14 @@ export default function DashboardPage() {
     if (aqi <= 80) return "text-orange-400"
     return "text-red-400"
   }
-  
+
   // Function to get traffic status color
   const getTrafficStatusColor = (congestionLevel: string) => {
     if (congestionLevel === "Light") return "text-green-400"
     if (congestionLevel === "Moderate") return "text-yellow-400"
     return "text-red-400"
   }
-  
+
   // Function to get water supply status color
   const getWaterStatusColor = (supplyStatus: string) => {
     if (supplyStatus === "High" || supplyStatus === "Rising") return "text-blue-400"
