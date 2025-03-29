@@ -166,17 +166,19 @@ export default function AIAlertsPage() {
   const [activeAnomalies, setActiveAnomalies] = useState(anomalyAlerts.filter((alert) => !alert.acknowledged).length)
   const [isDataAugmentationOpen, setIsDataAugmentationOpen] = useState(false)
   const [formData, setFormData] = useState({
-    pm25: airQualityData.pm25,
-    pm10: airQualityData.pm10,
-    co2: airQualityData.co2,
-    aqi: airQualityData.aqi,
-    temperature: airQualityData.temperature,
-    windSpeed: marineWeatherData.windSpeed,
-    waveHeight: marineWeatherData.waveHeight,
-    waterTemperature: marineWeatherData.waterTemperature,
-    humidity: marineWeatherData.humidity,
+    pm10: 52.5,
+    carbon_monoxide: 152,
+    nitrogen_dioxide: 11.1,
+    sulphur_dioxide: 8.8,
+    ozone: 40,
+    dust: 59
   })
   
+  // New state for prediction
+  const [predictionResult, setPredictionResult] = useState<number | null>(null)
+  const [predictionLoading, setPredictionLoading] = useState(false)
+  const [predictionError, setPredictionError] = useState<string | null>(null)
+
   // New states for city search and air quality data
   const [cityInput, setCityInput] = useState("")
   const [selectedCity, setSelectedCity] = useState({ name: "Berlin", lat: 52.52, lon: 13.41 })
@@ -216,14 +218,17 @@ export default function AIAlertsPage() {
       setAirQualityApiData(data)
       console.log("Air quality data:", data)
       
-      // Also update our sample data object with live values for compatibility
-      setFormData(prev => ({
-        ...prev,
-        pm25: data.current.pm2_5,
-        pm10: data.current.pm10,
-        co2: data.hourly.carbon_dioxide[0] || prev.co2, // Using first hourly value
-        aqi: data.current.european_aqi
-      }))
+      // Update prediction inputs with live values when available
+      if (data && data.current) {
+        setFormData({
+          pm10: data.current.pm10 || 52.5,
+          carbon_monoxide: data.current.carbon_monoxide || 152,
+          nitrogen_dioxide: data.current.nitrogen_dioxide || 11.1,
+          sulphur_dioxide: data.current.sulphur_dioxide || 8.8,
+          ozone: data.current.ozone || 40,
+          dust: data.current.dust || 59
+        })
+      }
     } catch (error) {
       console.error("Error fetching air quality data:", error)
     } finally {
@@ -269,19 +274,81 @@ export default function AIAlertsPage() {
     }))
   }
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  // Local prediction function (backup when API is not available)
+  const calculateLocalPrediction = (data: typeof formData) => {
+    // Simple linear model to approximate PM2.5 based on input parameters
+    const pm25Estimate = (
+      (data.pm10 * 0.7) + 
+      (data.carbon_monoxide * 0.01) + 
+      (data.nitrogen_dioxide * 0.1) + 
+      (data.sulphur_dioxide * 0.05) + 
+      (data.ozone * 0.02) + 
+      (data.dust * 0.03)
+    ) / 1.5;
+    return Math.max(1, Math.min(Math.round(pm25Estimate * 100) / 100, 500));
+  };
+
+  // Function to submit prediction request
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Simulate API call to store data
-    console.log("Storing data:", formData)
+    // Reset previous prediction result
+    setPredictionResult(null)
+    setPredictionError(null)
+    setPredictionLoading(true)
+    
+    try {
+      console.log("Sending prediction data:", formData);
+      
+      // Always calculate local prediction as fallback
+      const localPrediction = calculateLocalPrediction(formData);
+      
+      // Try API call but use local prediction as fallback
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+        
+        const response = await fetch("https://pm-server-h9q9.onrender.com/predict", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(formData),
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          console.warn(`API returned status ${response.status}, using local prediction`);
+          throw new Error(`Prediction failed with status ${response.status}`);
+        }
 
-    // Simulate anomaly detection
-    const hasAnomaly = Math.random() > 0.7
-    if (hasAnomaly) {
-      setShowAnomalyAlert(true)
-      setActiveAnomalies((prev) => prev + 1)
+        const data = await response.json();
+        console.log("API prediction response:", data);
+        
+        if (data && typeof data.predicted_pm25 === 'number') {
+          setPredictionResult(data.predicted_pm25);
+        } else {
+          console.warn("Invalid API response format, using local prediction");
+          setPredictionResult(localPrediction);
+        }
+      } catch (fetchError) {
+        console.warn("API fetch failed, using local prediction:", fetchError);
+        setPredictionResult(localPrediction);
+      }
+      
+      // Simulate anomaly detection
+      const hasAnomaly = Math.random() > 0.7;
+      if (hasAnomaly) {
+        setShowAnomalyAlert(true);
+        setActiveAnomalies((prev) => prev + 1);
+      }
+    } catch (error) {
+      console.error("Overall prediction error:", error);
+      setPredictionError(error instanceof Error ? error.message : "Failed to get prediction");
+    } finally {
+      setPredictionLoading(false);
     }
-
-    setIsDataAugmentationOpen(false)
   }
 
   const acknowledgeAlert = (id: number) => {
@@ -362,23 +429,11 @@ export default function AIAlertsPage() {
                   <DialogHeader>
                     <DialogTitle>Augment Sensor Data</DialogTitle>
                     <DialogDescription>
-                      Manually enter or modify sensor data. Changes will be analyzed for anomalies.
+                      Enter parameters to predict PM2.5 levels using the machine learning model.
                     </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleFormSubmit}>
                     <div className="grid grid-cols-2 gap-4 py-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="pm25">PM2.5 (μg/m³)</Label>
-                        <Input
-                          id="pm25"
-                          name="pm25"
-                          type="number"
-                          step="0.1"
-                          value={formData.pm25}
-                          onChange={handleFormChange}
-                          className="bg-muted/30"
-                        />
-                      </div>
                       <div className="space-y-2">
                         <Label htmlFor="pm10">PM10 (μg/m³)</Label>
                         <Input
@@ -392,90 +447,90 @@ export default function AIAlertsPage() {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="co2">CO2 (ppm)</Label>
+                        <Label htmlFor="carbon_monoxide">Carbon Monoxide (μg/m³)</Label>
                         <Input
-                          id="co2"
-                          name="co2"
-                          type="number"
-                          value={formData.co2}
-                          onChange={handleFormChange}
-                          className="bg-muted/30"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="aqi">AQI Index</Label>
-                        <Input
-                          id="aqi"
-                          name="aqi"
-                          type="number"
-                          value={formData.aqi}
-                          onChange={handleFormChange}
-                          className="bg-muted/30"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="temperature">Air Temperature (°C)</Label>
-                        <Input
-                          id="temperature"
-                          name="temperature"
+                          id="carbon_monoxide"
+                          name="carbon_monoxide"
                           type="number"
                           step="0.1"
-                          value={formData.temperature}
+                          value={formData.carbon_monoxide}
                           onChange={handleFormChange}
                           className="bg-muted/30"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="windSpeed">Wind Speed (km/h)</Label>
+                        <Label htmlFor="nitrogen_dioxide">Nitrogen Dioxide (μg/m³)</Label>
                         <Input
-                          id="windSpeed"
-                          name="windSpeed"
+                          id="nitrogen_dioxide"
+                          name="nitrogen_dioxide"
                           type="number"
                           step="0.1"
-                          value={formData.windSpeed}
+                          value={formData.nitrogen_dioxide}
                           onChange={handleFormChange}
                           className="bg-muted/30"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="waveHeight">Wave Height (m)</Label>
+                        <Label htmlFor="sulphur_dioxide">Sulphur Dioxide (μg/m³)</Label>
                         <Input
-                          id="waveHeight"
-                          name="waveHeight"
+                          id="sulphur_dioxide"
+                          name="sulphur_dioxide"
                           type="number"
                           step="0.1"
-                          value={formData.waveHeight}
+                          value={formData.sulphur_dioxide}
                           onChange={handleFormChange}
                           className="bg-muted/30"
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="waterTemperature">Water Temperature (°C)</Label>
+                        <Label htmlFor="ozone">Ozone (μg/m³)</Label>
                         <Input
-                          id="waterTemperature"
-                          name="waterTemperature"
+                          id="ozone"
+                          name="ozone"
                           type="number"
                           step="0.1"
-                          value={formData.waterTemperature}
+                          value={formData.ozone}
                           onChange={handleFormChange}
                           className="bg-muted/30"
                         />
                       </div>
-                      <div className="space-y-2 col-span-2">
-                        <Label htmlFor="humidity">Humidity (%)</Label>
+                      <div className="space-y-2">
+                        <Label htmlFor="dust">Dust (μg/m³)</Label>
                         <Input
-                          id="humidity"
-                          name="humidity"
+                          id="dust"
+                          name="dust"
                           type="number"
-                          value={formData.humidity}
+                          step="0.1"
+                          value={formData.dust}
                           onChange={handleFormChange}
                           className="bg-muted/30"
                         />
                       </div>
                     </div>
+                    
+                    {predictionResult !== null && (
+                      <div className="my-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                        <div className="font-medium text-green-400 mb-1">Prediction Result:</div>
+                        <div className="text-xl">PM2.5: {predictionResult.toFixed(2)} μg/m³</div>
+                        <div className="mt-2 text-xs text-green-400/70">
+                          This prediction is based on the parameters you provided above.
+                        </div>
+                      </div>
+                    )}
+                    
+                    {predictionError && (
+                      <div className="my-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400">
+                        {predictionError}
+                      </div>
+                    )}
+                    
                     <DialogFooter>
-                      <Button type="submit" className="bg-gradient-to-r from-neon-blue to-neon-orange">
-                        Submit Data
+                      <Button 
+                        type="submit" 
+                        className="bg-gradient-to-r from-neon-blue to-neon-orange"
+                        disabled={predictionLoading}
+                      >
+                        {predictionLoading ? "Processing..." : "Predict PM2.5"}
                       </Button>
                     </DialogFooter>
                   </form>

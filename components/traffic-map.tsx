@@ -5,7 +5,7 @@ import tt from "@tomtom-international/web-sdk-maps"
 import * as ttServices from "@tomtom-international/web-sdk-services"
 
 const TOMTOM_API_KEY = "ItW9AxUQxsOwuOxriWGp1kEID5r6ptrQ"
-const DEFAULT_COORDINATES = {
+const VASAI_WEST_COORDINATES = {
   lat: 19.3919,
   lng: 72.8397
 }
@@ -23,11 +23,10 @@ export default function TrafficMap({ className = "", cityCoordinates }: TrafficM
   const map = useRef<tt.Map | null>(null)
   const [startPoint, setStartPoint] = useState<[number, number] | null>(null)
   const [endPoint, setEndPoint] = useState<[number, number] | null>(null)
-  const navigationControlAdded = useRef<boolean>(false)
 
-  // Use the provided city coordinates or default
-  const coordinates = cityCoordinates || DEFAULT_COORDINATES
-
+  // Use provided coordinates or fall back to default
+  const coordinates = cityCoordinates || VASAI_WEST_COORDINATES
+  
   useEffect(() => {
     if (!mapContainer.current) return
 
@@ -44,29 +43,23 @@ export default function TrafficMap({ className = "", cityCoordinates }: TrafficM
     map.current.on("load", () => {
       if (!map.current) return
 
-      // Check if source already exists before adding
-      if (!map.current.getSource('traffic')) {
-        // Add traffic flow layer using raster tiles
-        map.current.addSource('traffic', {
-          type: 'raster',
-          tiles: [
-            `https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${TOMTOM_API_KEY}`
-          ],
-          tileSize: 256
-        })
-      }
+      // Add traffic flow layer using raster tiles
+      map.current.addSource('traffic', {
+        type: 'raster',
+        tiles: [
+          `https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${TOMTOM_API_KEY}`
+        ],
+        tileSize: 256
+      })
 
-      // Check if layer already exists before adding
-      if (!map.current.getLayer('traffic-layer')) {
-        map.current.addLayer({
-          id: 'traffic-layer',
-          type: 'raster',
-          source: 'traffic',
-          paint: {
-            'raster-opacity': 0.7
-          }
-        })
-      }
+      map.current.addLayer({
+        id: 'traffic-layer',
+        type: 'raster',
+        source: 'traffic',
+        paint: {
+          'raster-opacity': 0.7
+        }
+      })
 
       // Add click handler for route points
       map.current.on('click', (e) => {
@@ -79,62 +72,28 @@ export default function TrafficMap({ className = "", cityCoordinates }: TrafficM
         }
       })
 
-      // Add navigation controls (only if not already added)
-      if (!navigationControlAdded.current && map.current) {
-        map.current.addControl(new tt.NavigationControl(), 'top-right')
-        navigationControlAdded.current = true
-      }
+      // Add navigation controls
+      map.current.addControl(new tt.NavigationControl(), 'top-right')
     })
 
     // Cleanup
     return () => {
       if (map.current) {
-        // Remove specific layers and sources to prevent duplicates on remount
-        if (map.current.getLayer('traffic-layer')) {
-          map.current.removeLayer('traffic-layer');
-        }
-        if (map.current.getSource('traffic')) {
-          map.current.removeSource('traffic');
-        }
-        if (map.current.getLayer('route')) {
-          map.current.removeLayer('route');
-        }
-        if (map.current.getSource('route')) {
-          map.current.removeSource('route');
-        }
-        
         map.current.remove()
         map.current = null
-        navigationControlAdded.current = false
       }
     }
-  }, []) // Initial map setup
+  }, [startPoint, endPoint])
 
-  // Add a new effect that watches for city coordinate changes
+  // Add useEffect to handle city changes
   useEffect(() => {
     if (map.current && cityCoordinates) {
-      // Fly to the new location with animation
       map.current.flyTo({
         center: [cityCoordinates.lng, cityCoordinates.lat],
-        zoom: 13,
-        speed: 1.2,
-        curve: 1.42,
-        essential: true
-      });
-      
-      // Reset route points when changing cities
-      setStartPoint(null);
-      setEndPoint(null);
-      
-      // Remove existing route if any
-      if (map.current.getLayer('route')) {
-        map.current.removeLayer('route');
-      }
-      if (map.current.getSource('route')) {
-        map.current.removeSource('route');
-      }
+        zoom: 13
+      })
     }
-  }, [cityCoordinates]);
+  }, [cityCoordinates])
 
   const calculateRoute = async (start: [number, number], end: [number, number]) => {
     try {

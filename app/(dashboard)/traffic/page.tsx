@@ -276,46 +276,46 @@ export default function TrafficPage() {
       {
         id: "1",
         name: `${city.charAt(0).toUpperCase() + city.slice(1)} Main Street`,
-        congestion: 85,
-        delay: "25 min",
+    congestion: 85,
+    delay: "25 min",
         speed: "7 km/h",
-        status: "Heavy",
+    status: "Heavy",
         coordinates: { lat: coordinates.lat + 0.02, lng: coordinates.lng - 0.01 }
-      },
-      {
+  },
+  {
         id: "2",
         name: `Highway 101 North`,
-        congestion: 75,
-        delay: "18 min",
+    congestion: 75,
+    delay: "18 min",
         speed: "15 km/h",
-        status: "Heavy",
+    status: "Heavy",
         coordinates: { lat: coordinates.lat - 0.01, lng: coordinates.lng + 0.02 }
-      },
-      {
+  },
+  {
         id: "3",
         name: `Central Boulevard`,
-        congestion: 65,
-        delay: "12 min",
+    congestion: 65,
+    delay: "12 min",
         speed: "22 km/h",
-        status: "Moderate",
+    status: "Moderate",
         coordinates: { lat: coordinates.lat + 0.01, lng: coordinates.lng + 0.01 }
-      },
-      {
+  },
+  {
         id: "4",
         name: `West Bridge`,
-        congestion: 60,
-        delay: "10 min",
+    congestion: 60,
+    delay: "10 min",
         speed: "25 km/h",
-        status: "Moderate",
+    status: "Moderate",
         coordinates: { lat: coordinates.lat - 0.02, lng: coordinates.lng - 0.02 }
-      },
-      {
+  },
+  {
         id: "5",
         name: `East Highway Junction`,
-        congestion: 55,
-        delay: "8 min",
+    congestion: 55,
+    delay: "8 min",
         speed: "30 km/h",
-        status: "Moderate",
+    status: "Moderate",
         coordinates: { lat: coordinates.lat, lng: coordinates.lng + 0.03 }
       },
     ];
@@ -539,9 +539,9 @@ export default function TrafficPage() {
           id: "1",
           from: `${city.charAt(0).toUpperCase() + city.slice(1)} General Hospital`,
           to: `${city.charAt(0).toUpperCase() + city.slice(1)} North District`,
-          time: "7 min",
-          distance: "2.3 miles",
-          congestion: "Low",
+    time: "7 min",
+    distance: "2.3 miles",
+    congestion: "Low",
           scenario: "Medical Emergency Response",
           vehicle: "Ambulance",
           priority: "High",
@@ -564,7 +564,7 @@ export default function TrafficPage() {
           to: `${city.charAt(0).toUpperCase() + city.slice(1)} Metro Mall`,
           time: "9 min",
           distance: "3.1 miles",
-          congestion: "Moderate",
+    congestion: "Moderate",
           scenario: "Security Incident Response",
           vehicle: "Police Vehicle",
           priority: "High",
@@ -660,7 +660,7 @@ export default function TrafficPage() {
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                       <CardTitle>Live Traffic Stats</CardTitle>
-                      <CardDescription>Real-time traffic conditions across the city</CardDescription>
+                  <CardDescription>Real-time traffic conditions across the city</CardDescription>
                     </div>
                     <div className="flex items-center gap-3 w-full md:w-auto">
                       <CitySearch 
@@ -750,7 +750,7 @@ export default function TrafficPage() {
               <div className="space-y-6">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div>
-                    <h2 className="text-xl font-semibold">Top 5 Traffic Hotspots</h2>
+                  <h2 className="text-xl font-semibold">Top 5 Traffic Hotspots</h2>
                     <p className="text-sm text-muted-foreground">Real-time traffic congestion data</p>
                   </div>
                   <div className="flex items-center gap-3 w-full md:w-auto">
@@ -759,9 +759,9 @@ export default function TrafficPage() {
                       setSelectedCity={setSelectedCity} 
                       className="flex-grow md:w-64" 
                     />
-                    <Badge variant="outline" className="bg-red-500/20 hover:bg-red-500/30 text-red-400">
-                      Live Data
-                    </Badge>
+                  <Badge variant="outline" className="bg-red-500/20 hover:bg-red-500/30 text-red-400">
+                    Live Data
+                  </Badge>
                     <Button 
                       variant="outline" 
                       size="sm" 
@@ -790,73 +790,73 @@ export default function TrafficPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {trafficHotspots.length > 0 ? (
                       trafficHotspots.map((hotspot, index) => (
-                        <motion.div
-                          key={hotspot.id}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.3, delay: index * 0.1 }}
-                        >
-                          <Card className="overflow-hidden glassmorphism border-0 h-full">
-                            <div
-                              className={`h-2 ${
-                                hotspot.congestion > 70
-                                  ? "bg-red-500"
-                                  : hotspot.congestion > 50
-                                    ? "bg-yellow-500"
-                                    : "bg-green-500"
-                              }`}
-                            />
-                            <CardContent className="p-5">
-                              <div className="flex justify-between items-start">
-                                <div>
-                                  <h3 className="font-medium mb-1">{hotspot.name}</h3>
-                                  <div className="flex items-center space-x-2 text-xs text-muted-foreground mb-3">
-                                    <MapPin className="h-3 w-3" />
-                                    <span>Congestion Level: {hotspot.status}</span>
-                                  </div>
-                                </div>
-                                <div className="flex items-center">
-                                  <Badge
-                                    variant="outline"
-                                    className={`${
-                                      hotspot.congestion > 70
-                                        ? "bg-red-500/20 text-red-400"
-                                        : hotspot.congestion > 50
-                                          ? "bg-yellow-500/20 text-yellow-400"
-                                          : "bg-green-500/20 text-green-400"
-                                    }`}
-                                  >
-                                    {hotspot.congestion}%
-                                  </Badge>
-                                </div>
+                    <motion.div
+                      key={hotspot.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.1 }}
+                    >
+                      <Card className="overflow-hidden glassmorphism border-0 h-full">
+                        <div
+                          className={`h-2 ${
+                            hotspot.congestion > 70
+                              ? "bg-red-500"
+                              : hotspot.congestion > 50
+                                ? "bg-yellow-500"
+                                : "bg-green-500"
+                          }`}
+                        />
+                        <CardContent className="p-5">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h3 className="font-medium mb-1">{hotspot.name}</h3>
+                              <div className="flex items-center space-x-2 text-xs text-muted-foreground mb-3">
+                                <MapPin className="h-3 w-3" />
+                                <span>Congestion Level: {hotspot.status}</span>
                               </div>
+                            </div>
+                            <div className="flex items-center">
+                              <Badge
+                                variant="outline"
+                                className={`${
+                                  hotspot.congestion > 70
+                                    ? "bg-red-500/20 text-red-400"
+                                    : hotspot.congestion > 50
+                                      ? "bg-yellow-500/20 text-yellow-400"
+                                      : "bg-green-500/20 text-green-400"
+                                }`}
+                              >
+                                {hotspot.congestion}%
+                              </Badge>
+                            </div>
+                          </div>
 
-                              <Progress value={hotspot.congestion} className="h-2 mb-4" />
+                          <Progress value={hotspot.congestion} className="h-2 mb-4" />
 
-                              <div className="grid grid-cols-2 gap-2 text-sm">
-                                <div className="flex items-center gap-1">
-                                  <Clock className="h-3 w-3 text-muted-foreground" />
-                                  <span className="text-xs">Delay: {hotspot.delay}</span>
-                                </div>
-                                <div className="flex items-center gap-1">
-                                  <Car className="h-3 w-3 text-muted-foreground" />
-                                  <span className="text-xs">Avg Speed: {hotspot.speed}</span>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </motion.div>
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div className="flex items-center gap-1">
+                              <Clock className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-xs">Delay: {hotspot.delay}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Car className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-xs">Avg Speed: {hotspot.speed}</span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
                       ))
                     ) : (
                       <div className="col-span-3 text-center p-8">
                         <AlertTriangle className="h-8 w-8 mx-auto mb-2 text-yellow-400" />
                         <p className="text-muted-foreground">No traffic hotspots found for the selected city</p>
-                      </div>
+                </div>
                     )}
-                  </div>
+                </div>
                 )}
               </div>
             </TabsContent>
@@ -993,15 +993,15 @@ export default function TrafficPage() {
                                         : "text-green-400"
                                   }`} />
                                   <span className="font-medium">{route.trafficDelay} min</span>
-                                </div>
-                              </div>
+                            </div>
+                          </div>
                               <div className="bg-panel-bg rounded-lg p-3">
                                 <p className="text-xs text-muted-foreground mb-1">Arrival Time</p>
                                 <div className="flex items-center gap-1">
                                   <Clock className="h-4 w-4 text-neon-blue" />
                                   <span className="font-medium">{route.arrivalTime}</span>
                                 </div>
-                              </div>
+                            </div>
                             </div>
                             
                             <div className="mt-3 flex justify-between items-center">
@@ -1038,7 +1038,7 @@ export default function TrafficPage() {
                               </Badge>
                             </div>
                             <Progress value={72} className="h-1 mt-2" />
-                          </div>
+                  </div>
                         </CardContent>
                       </Card>
 
@@ -1060,8 +1060,8 @@ export default function TrafficPage() {
                             </div>
                             <Progress value={56} className="h-1 mt-2" />
                           </div>
-                        </CardContent>
-                      </Card>
+                      </CardContent>
+                    </Card>
 
                       <Card className="bg-panel-bg border-0">
                         <CardContent className="p-4">
@@ -1081,8 +1081,8 @@ export default function TrafficPage() {
                             </div>
                             <Progress value={86} className="h-1 mt-2" />
                           </div>
-                        </CardContent>
-                      </Card>
+                      </CardContent>
+                    </Card>
                     </div>
                   </div>
                 </CardContent>

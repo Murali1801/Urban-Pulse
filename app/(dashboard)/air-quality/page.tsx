@@ -194,6 +194,17 @@ export default function AirQualityPage() {
   const [searchedCityData, setSearchedCityData] = useState<NormalizedAirQualityData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [predictionLoading, setPredictionLoading] = useState(false)
+  const [predictionResult, setPredictionResult] = useState<number | null>(null)
+  const [predictionError, setPredictionError] = useState<string | null>(null)
+  const [predictionInputs, setPredictionInputs] = useState({
+    pm10: 52.5,
+    carbon_monoxide: 152,
+    nitrogen_dioxide: 11.1,
+    sulphur_dioxide: 8.8,
+    ozone: 40,
+    dust: 59
+  })
 
   // Function to fetch city coordinates from a city name using Nominatim API
   const fetchCityCoordinates = async (city: string): Promise<{ lat: number; lon: number; display_name: string }> => {
@@ -438,6 +449,57 @@ export default function AirQualityPage() {
     }
   }
 
+  // Function to handle input change for prediction form
+  const handlePredictionInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setPredictionInputs(prev => ({
+      ...prev,
+      [name]: parseFloat(value) || 0
+    }));
+  };
+
+  // Function to submit prediction request
+  const submitPrediction = async () => {
+    try {
+      setPredictionLoading(true);
+      setPredictionError(null);
+      setPredictionResult(null);
+
+      const response = await fetch("https://pm-server-h9q9.onrender.com/predict", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(predictionInputs),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Prediction request failed with status ${response.status}`);
+      }
+
+      const data = await response.json();
+      setPredictionResult(data.predicted_pm25);
+    } catch (error) {
+      console.error("Prediction error:", error);
+      setPredictionError(error instanceof Error ? error.message : "Failed to get prediction");
+    } finally {
+      setPredictionLoading(false);
+    }
+  };
+
+  // Function to load current air quality data into prediction form
+  const loadCurrentDataToPrediction = () => {
+    // Reset to default values
+    setPredictionInputs({
+      pm10: 52.5,
+      carbon_monoxide: 152,
+      nitrogen_dioxide: 11.1,
+      sulphur_dioxide: 8.8,
+      ozone: 40,
+      dust: 59
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-dark-bg py-8 flex items-center justify-center">
@@ -514,15 +576,18 @@ export default function AirQualityPage() {
           </div>
 
           <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-            <TabsList className="grid grid-cols-3 w-full mb-6">
+            <TabsList className="grid grid-cols-4 w-full mb-6">
               <TabsTrigger value="dashboard" className="data-[state=active]:text-gradient">
                 Dashboard
               </TabsTrigger>
-              <TabsTrigger value="heatmap" className="data-[state=active]:text-gradient">
-                Pollution Stats
+              <TabsTrigger value="map" className="data-[state=active]:text-gradient">
+                Map View
               </TabsTrigger>
-              <TabsTrigger value="forecast" className="data-[state=active]:text-gradient">
-                AI Forecast
+              <TabsTrigger value="forecasts" className="data-[state=active]:text-gradient">
+                Forecasts
+              </TabsTrigger>
+              <TabsTrigger value="augmentation" className="data-[state=active]:text-gradient">
+                Data Augmentation
               </TabsTrigger>
             </TabsList>
 
@@ -733,7 +798,7 @@ export default function AirQualityPage() {
               </div>
             </TabsContent>
 
-            <TabsContent value="heatmap">
+            <TabsContent value="map">
               <Card className="border-0 shadow-none overflow-hidden bg-transparent">
                 <CardHeader>
                   <CardTitle>Air Pollution Metrics - {getLocationName()}</CardTitle>
@@ -1106,7 +1171,7 @@ export default function AirQualityPage() {
               </Card>
             </TabsContent>
 
-            <TabsContent value="forecast">
+            <TabsContent value="forecasts">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Card className="md:col-span-2 border-0 shadow-none bg-transparent">
                   <CardHeader>
@@ -1263,6 +1328,200 @@ export default function AirQualityPage() {
                   </Card>
                 </div>
               </div>
+            </TabsContent>
+
+            <TabsContent value="augmentation" className="space-y-6">
+              <Card className="border-0 shadow-none overflow-hidden bg-transparent">
+                <CardHeader>
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                      <CardTitle>PM2.5 Prediction Model</CardTitle>
+                      <CardDescription>
+                        Predict PM2.5 levels based on other air quality parameters
+                      </CardDescription>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex items-center gap-1"
+                      onClick={loadCurrentDataToPrediction}
+                    >
+                      <Info className="h-3 w-3" />
+                      <span>Reset to Default</span>
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="glassmorphism p-6 rounded-xl mb-6">
+                    <h3 className="text-lg font-medium mb-4">Input Parameters</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div className="space-y-2">
+                        <label className="text-sm text-muted-foreground">
+                          PM10 (μg/m³)
+                        </label>
+                        <input
+                          type="number"
+                          name="pm10"
+                          value={predictionInputs.pm10}
+                          onChange={handlePredictionInputChange}
+                          className="w-full rounded-md bg-panel-bg border border-border-subtle p-2 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm text-muted-foreground">
+                          Carbon Monoxide (μg/m³)
+                        </label>
+                        <input
+                          type="number"
+                          name="carbon_monoxide"
+                          value={predictionInputs.carbon_monoxide}
+                          onChange={handlePredictionInputChange}
+                          className="w-full rounded-md bg-panel-bg border border-border-subtle p-2 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm text-muted-foreground">
+                          Nitrogen Dioxide (μg/m³)
+                        </label>
+                        <input
+                          type="number"
+                          name="nitrogen_dioxide"
+                          value={predictionInputs.nitrogen_dioxide}
+                          onChange={handlePredictionInputChange}
+                          className="w-full rounded-md bg-panel-bg border border-border-subtle p-2 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm text-muted-foreground">
+                          Sulphur Dioxide (μg/m³)
+                        </label>
+                        <input
+                          type="number"
+                          name="sulphur_dioxide"
+                          value={predictionInputs.sulphur_dioxide}
+                          onChange={handlePredictionInputChange}
+                          className="w-full rounded-md bg-panel-bg border border-border-subtle p-2 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm text-muted-foreground">
+                          Ozone (μg/m³)
+                        </label>
+                        <input
+                          type="number"
+                          name="ozone"
+                          value={predictionInputs.ozone}
+                          onChange={handlePredictionInputChange}
+                          className="w-full rounded-md bg-panel-bg border border-border-subtle p-2 text-sm"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm text-muted-foreground">
+                          Dust (μg/m³)
+                        </label>
+                        <input
+                          type="number"
+                          name="dust"
+                          value={predictionInputs.dust}
+                          onChange={handlePredictionInputChange}
+                          className="w-full rounded-md bg-panel-bg border border-border-subtle p-2 text-sm"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-end">
+                      <Button
+                        onClick={submitPrediction}
+                        disabled={predictionLoading}
+                        className="bg-gradient-to-r from-neon-blue to-neon-orange"
+                      >
+                        {predictionLoading ? "Predicting..." : "Predict PM2.5"}
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {predictionError && (
+                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 mb-4 text-red-400">
+                      {predictionError}
+                    </div>
+                  )}
+                  
+                  {predictionResult !== null && (
+                    <Card className="bg-panel-bg border-0">
+                      <CardContent className="p-6">
+                        <h3 className="text-lg font-medium mb-2">Prediction Result</h3>
+                        <div className="flex items-end gap-4">
+                          <div className="text-4xl font-bold text-neon-blue">
+                            {predictionResult.toFixed(2)} <span className="text-sm font-normal">μg/m³</span>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            Predicted PM2.5 Concentration
+                          </div>
+                        </div>
+                        
+                        <div className="mt-4 pt-4 border-t border-border-subtle">
+                          <h4 className="text-sm font-medium mb-2">About This Prediction</h4>
+                          <p className="text-sm text-muted-foreground">
+                            This value is generated by a machine learning model that predicts PM2.5 levels based on the other air quality parameters.
+                            PM2.5 particles are tiny particles in the air that are 2.5 micrometers or less in width and can cause serious health problems when inhaled.
+                          </p>
+                        </div>
+                        
+                        <div className="mt-4 pt-4 border-t border-border-subtle">
+                          <h4 className="text-sm font-medium mb-2">Health Interpretation</h4>
+                          <div className="flex items-center gap-2">
+                            <div className={`w-3 h-3 rounded-full ${
+                              predictionResult <= 12 ? "bg-green-500" :
+                              predictionResult <= 35.4 ? "bg-yellow-500" :
+                              predictionResult <= 55.4 ? "bg-orange-500" :
+                              predictionResult <= 150.4 ? "bg-red-500" :
+                              predictionResult <= 250.4 ? "bg-purple-500" : "bg-purple-900"
+                            }`} />
+                            <span className="text-sm">
+                              {predictionResult <= 12 ? "Good" :
+                              predictionResult <= 35.4 ? "Moderate" :
+                              predictionResult <= 55.4 ? "Unhealthy for Sensitive Groups" :
+                              predictionResult <= 150.4 ? "Unhealthy" :
+                              predictionResult <= 250.4 ? "Very Unhealthy" : "Hazardous"}
+                            </span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                  
+                  <div className="mt-6">
+                    <Card className="bg-panel-bg border-0">
+                      <CardContent className="p-6">
+                        <h3 className="text-lg font-medium mb-4">About the Prediction Model</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          This machine learning model uses multiple air quality parameters to predict PM2.5 levels.
+                          The model was trained on historical air quality data and can help estimate PM2.5 concentrations
+                          when direct measurements are not available.
+                        </p>
+                        
+                        <h4 className="text-md font-medium mb-2">API Usage Example</h4>
+                        <pre className="bg-gray-900 p-4 rounded-lg text-xs overflow-x-auto">
+{`import requests
+
+url = "https://pm-server-h9q9.onrender.com/predict"
+data = {
+    "pm10": ${predictionInputs.pm10},
+    "carbon_monoxide": ${predictionInputs.carbon_monoxide},
+    "nitrogen_dioxide": ${predictionInputs.nitrogen_dioxide},
+    "sulphur_dioxide": ${predictionInputs.sulphur_dioxide},
+    "ozone": ${predictionInputs.ozone},
+    "dust": ${predictionInputs.dust}
+}
+
+response = requests.post(url, json=data)
+print(response.json())  # {'predicted_pm25': ${predictionResult?.toFixed(2) || 'value'}}`}
+                        </pre>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </CardContent>
+              </Card>
             </TabsContent>
           </Tabs>
         </div>
