@@ -36,23 +36,29 @@ export default function TrafficMap({ className = "" }: TrafficMapProps) {
     map.current.on("load", () => {
       if (!map.current) return
 
-      // Add traffic flow layer using raster tiles
-      map.current.addSource('traffic', {
-        type: 'raster',
-        tiles: [
-          `https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${TOMTOM_API_KEY}`
-        ],
-        tileSize: 256
-      })
+      // Check if source already exists before adding
+      if (!map.current.getSource('traffic')) {
+        // Add traffic flow layer using raster tiles
+        map.current.addSource('traffic', {
+          type: 'raster',
+          tiles: [
+            `https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${TOMTOM_API_KEY}`
+          ],
+          tileSize: 256
+        })
+      }
 
-      map.current.addLayer({
-        id: 'traffic-layer',
-        type: 'raster',
-        source: 'traffic',
-        paint: {
-          'raster-opacity': 0.7
-        }
-      })
+      // Check if layer already exists before adding
+      if (!map.current.getLayer('traffic-layer')) {
+        map.current.addLayer({
+          id: 'traffic-layer',
+          type: 'raster',
+          source: 'traffic',
+          paint: {
+            'raster-opacity': 0.7
+          }
+        })
+      }
 
       // Add click handler for route points
       map.current.on('click', (e) => {
@@ -65,18 +71,42 @@ export default function TrafficMap({ className = "" }: TrafficMapProps) {
         }
       })
 
-      // Add navigation controls
-      map.current.addControl(new tt.NavigationControl(), 'top-right')
+      // Add navigation controls (only if not already added)
+      const controls = map.current.getControls();
+      let hasNavControl = false;
+      for (const control of controls) {
+        if (control instanceof tt.NavigationControl) {
+          hasNavControl = true;
+          break;
+        }
+      }
+      if (!hasNavControl) {
+        map.current.addControl(new tt.NavigationControl(), 'top-right')
+      }
     })
 
     // Cleanup
     return () => {
       if (map.current) {
+        // Remove specific layers and sources to prevent duplicates on remount
+        if (map.current.getLayer('traffic-layer')) {
+          map.current.removeLayer('traffic-layer');
+        }
+        if (map.current.getSource('traffic')) {
+          map.current.removeSource('traffic');
+        }
+        if (map.current.getLayer('route')) {
+          map.current.removeLayer('route');
+        }
+        if (map.current.getSource('route')) {
+          map.current.removeSource('route');
+        }
+        
         map.current.remove()
         map.current = null
       }
     }
-  }, [startPoint, endPoint])
+  }, []) // Remove startPoint and endPoint from dependencies to prevent remounting
 
   const calculateRoute = async (start: [number, number], end: [number, number]) => {
     try {
