@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
-import { Bell, Home, User, Menu, X, Car, Wind, Droplets, Zap, Bot } from "lucide-react"
+import { Bell, Home, User, Menu, X, Car, Wind, Droplets, Zap, Bot, AlertCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -19,8 +19,7 @@ const navLinks = [
   { name: "Traffic", href: "/traffic", icon: Car },
   { name: "Air Quality", href: "/air-quality", icon: Wind },
   { name: "Water Levels", href: "/water-levels", icon: Droplets },
-  { name: "Energy Usage", href: "/energy-usage", icon: Zap },
-  { name: "Alerts", href: "/alerts", icon: Bell },
+  { name: "AI Alerts", href: "/ai-alerts", icon: AlertCircle },
   { name: "AI Assistant", href: "/ai-assistant", icon: Bot },
 ]
 
