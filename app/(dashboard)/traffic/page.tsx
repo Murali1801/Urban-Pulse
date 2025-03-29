@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import TrafficMap from "@/components/traffic-map"
 
 // Sample data for traffic hotspots
 const trafficHotspots = [
@@ -115,20 +116,10 @@ export default function TrafficPage() {
                   <CardDescription>Real-time traffic conditions across the city</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="relative w-full h-[600px] glassmorphism rounded-xl overflow-hidden">
-                    {/* Here we'd normally have the Google Maps integration */}
-                    <div className="absolute inset-0 grid place-items-center bg-darker-bg/60">
-                      <div className="text-center px-4">
-                        <Car className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                        <h3 className="text-xl font-medium mb-2">Interactive Map Placeholder</h3>
-                        <p className="text-muted-foreground max-w-md">
-                          This would be an interactive Google Maps or Mapbox integration showing real-time traffic data
-                          with congestion heatmaps.
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Map overlay controls - these would actually work with a real map integration */}
+                  <div className="relative w-full glassmorphism rounded-xl overflow-hidden">
+                    <TrafficMap />
+                    
+                    {/* Map overlay controls */}
                     <div className="absolute top-4 right-4 z-10">
                       <div className="glassmorphism p-3 rounded-lg shadow-lg">
                         <h4 className="text-sm font-medium mb-3">Traffic Density</h4>
