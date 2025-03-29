@@ -5,20 +5,28 @@ import tt from "@tomtom-international/web-sdk-maps"
 import * as ttServices from "@tomtom-international/web-sdk-services"
 
 const TOMTOM_API_KEY = "ItW9AxUQxsOwuOxriWGp1kEID5r6ptrQ"
-const VASAI_WEST_COORDINATES = {
+const DEFAULT_COORDINATES = {
   lat: 19.3919,
   lng: 72.8397
 }
 
 interface TrafficMapProps {
   className?: string
+  cityCoordinates?: {
+    lat: number,
+    lng: number
+  }
 }
 
-export default function TrafficMap({ className = "" }: TrafficMapProps) {
+export default function TrafficMap({ className = "", cityCoordinates }: TrafficMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<tt.Map | null>(null)
   const [startPoint, setStartPoint] = useState<[number, number] | null>(null)
   const [endPoint, setEndPoint] = useState<[number, number] | null>(null)
+  const navigationControlAdded = useRef<boolean>(false)
+
+  // Use the provided city coordinates or default
+  const coordinates = cityCoordinates || DEFAULT_COORDINATES
 
   useEffect(() => {
     if (!mapContainer.current) return
@@ -27,7 +35,7 @@ export default function TrafficMap({ className = "" }: TrafficMapProps) {
     map.current = tt.map({
       key: TOMTOM_API_KEY,
       container: mapContainer.current,
-      center: [VASAI_WEST_COORDINATES.lng, VASAI_WEST_COORDINATES.lat],
+      center: [coordinates.lng, coordinates.lat],
       zoom: 13,
       language: "en-GB",
     })
@@ -72,16 +80,9 @@ export default function TrafficMap({ className = "" }: TrafficMapProps) {
       })
 
       // Add navigation controls (only if not already added)
-      const controls = map.current.getControls();
-      let hasNavControl = false;
-      for (const control of controls) {
-        if (control instanceof tt.NavigationControl) {
-          hasNavControl = true;
-          break;
-        }
-      }
-      if (!hasNavControl) {
+      if (!navigationControlAdded.current && map.current) {
         map.current.addControl(new tt.NavigationControl(), 'top-right')
+        navigationControlAdded.current = true
       }
     })
 
@@ -104,9 +105,36 @@ export default function TrafficMap({ className = "" }: TrafficMapProps) {
         
         map.current.remove()
         map.current = null
+        navigationControlAdded.current = false
       }
     }
-  }, []) // Remove startPoint and endPoint from dependencies to prevent remounting
+  }, []) // Initial map setup
+
+  // Add a new effect that watches for city coordinate changes
+  useEffect(() => {
+    if (map.current && cityCoordinates) {
+      // Fly to the new location with animation
+      map.current.flyTo({
+        center: [cityCoordinates.lng, cityCoordinates.lat],
+        zoom: 13,
+        speed: 1.2,
+        curve: 1.42,
+        essential: true
+      });
+      
+      // Reset route points when changing cities
+      setStartPoint(null);
+      setEndPoint(null);
+      
+      // Remove existing route if any
+      if (map.current.getLayer('route')) {
+        map.current.removeLayer('route');
+      }
+      if (map.current.getSource('route')) {
+        map.current.removeSource('route');
+      }
+    }
+  }, [cityCoordinates]);
 
   const calculateRoute = async (start: [number, number], end: [number, number]) => {
     try {

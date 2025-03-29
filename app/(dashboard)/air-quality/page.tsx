@@ -298,8 +298,8 @@ export default function AirQualityPage() {
       const normalizedData = normalizeAirQualityData(data, display_name.split(',')[0])
       
       setSearchedCityData(normalizedData)
-      setSelectedLocation("searched")
-      setSelectedTab("dashboard")
+        setSelectedLocation("searched")
+        setSelectedTab("dashboard")
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred while fetching air quality data")
     } finally {
@@ -603,11 +603,11 @@ export default function AirQualityPage() {
                         </ResponsiveContainer>
                       ) : (
                         <div className="h-full flex items-center justify-center">
-                          <div className="text-center">
+                      <div className="text-center">
                             <Wind className="h-16 w-16 mx-auto mb-4 text-neon-blue animate-spin" />
                             <p className="text-muted-foreground">Loading {getLocationName()} air quality data...</p>
                           </div>
-                        </div>
+                      </div>
                       )}
                     </div>
                   </CardContent>
@@ -800,9 +800,9 @@ export default function AirQualityPage() {
                           Particulate matter consists of microscopic particles in the air that can be inhaled and cause health problems.
                           PM2.5 particles are fine particles with diameters less than 2.5 micrometers, while PM10 particles are coarse
                           particles with diameters less than 10 micrometers.
-                        </p>
+                          </p>
+                        </div>
                       </div>
-                    </div>
                     
                     <div className="glassmorphism p-4 rounded-xl">
                       <h3 className="text-lg font-medium mb-4">Gas Pollutants</h3>
@@ -812,7 +812,7 @@ export default function AirQualityPage() {
                           <div className="flex justify-between items-center mb-1">
                             <span className="text-sm">Ozone (O₃)</span>
                             <span className="text-xs font-medium">{getPollutantValue(currentData, 'o3')} µg/m³</span>
-                          </div>
+                    </div>
                           <div className="h-2 w-full bg-muted/20 rounded-full overflow-hidden">
                             <div 
                               className={`h-full ${
@@ -1183,11 +1183,11 @@ export default function AirQualityPage() {
                         </ResponsiveContainer>
                       ) : (
                         <div className="h-full flex items-center justify-center">
-                          <div className="text-center">
+                      <div className="text-center">
                             <Wind className="h-16 w-16 mx-auto mb-4 text-neon-blue animate-spin" />
                             <p className="text-muted-foreground">Loading forecast data...</p>
                           </div>
-                        </div>
+                      </div>
                       )}
                     </div>
                   </CardContent>
