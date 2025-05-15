@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { Bell, Home, User, Menu, X, Car, Wind, Droplets, Zap, Bot, AlertCircle } from "lucide-react"
+import { Bell, Home, User, Menu, X, Car, Wind, Droplets, Zap, Bot, AlertCircle, Settings, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -13,6 +14,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useAuth } from "@/contexts/AuthContext"
+import { auth } from "@/lib/firebase"
+import { signOut } from "firebase/auth"
 
 const navLinks = [
   { name: "Home", href: "/dashboard", icon: Home },
@@ -24,6 +28,8 @@ const navLinks = [
 ]
 
 export function Navbar() {
+  const router = useRouter()
+  const { user } = useAuth()
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
@@ -39,6 +45,15 @@ export function Navbar() {
     window.addEventListener("scroll", handleScroll)
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth)
+      router.push("/login")
+    } catch (error) {
+      console.error("Error signing out:", error)
+    }
+  }
 
   return (
     <header
@@ -92,15 +107,26 @@ export function Navbar() {
                 <span className="sr-only">Profile</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none">{user?.displayName || 'User'}</p>
+                  <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                </div>
+              </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>Profile</DropdownMenuItem>
-              <DropdownMenuItem>Settings</DropdownMenuItem>
-              <DropdownMenuItem>
-                <Link href="/login" className="w-full">
-                  Log out
-                </Link>
+              <DropdownMenuItem onClick={() => router.push("/profile")}>
+                <User className="mr-2 h-4 w-4" />
+                <span>Profile</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push("/settings")}>
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Settings</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout} className="text-red-500">
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -143,6 +169,29 @@ export function Navbar() {
                 </Link>
               )
             })}
+            <div className="border-t border-[#ffffff10] my-2" />
+            <Link
+              href="/profile"
+              className="px-3 py-2 rounded-md text-sm font-medium text-gray-300 hover:text-white hover:bg-muted/50 transition"
+              onClick={() => setIsMobileMenuOpen(false)}
+            >
+              <span className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Profile
+              </span>
+            </Link>
+            <button
+              onClick={() => {
+                handleLogout()
+                setIsMobileMenuOpen(false)
+              }}
+              className="px-3 py-2 rounded-md text-sm font-medium text-red-500 hover:text-red-400 hover:bg-muted/50 transition text-left"
+            >
+              <span className="flex items-center gap-2">
+                <LogOut className="h-4 w-4" />
+                Log out
+              </span>
+            </button>
           </nav>
         </motion.div>
       )}

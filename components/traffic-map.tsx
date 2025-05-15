@@ -12,9 +12,13 @@ const VASAI_WEST_COORDINATES = {
 
 interface TrafficMapProps {
   className?: string
+  cityCoordinates?: {
+    lat: number
+    lng: number
+  }
 }
 
-export default function TrafficMap({ className = "" }: TrafficMapProps) {
+export default function TrafficMap({ className = "", cityCoordinates }: TrafficMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<tt.Map | null>(null)
   const [startPoint, setStartPoint] = useState<[number, number] | null>(null)
@@ -23,11 +27,13 @@ export default function TrafficMap({ className = "" }: TrafficMapProps) {
   useEffect(() => {
     if (!mapContainer.current) return
 
+    const coordinates = cityCoordinates || VASAI_WEST_COORDINATES;
+
     // Initialize map
     map.current = tt.map({
       key: TOMTOM_API_KEY,
       container: mapContainer.current,
-      center: [VASAI_WEST_COORDINATES.lng, VASAI_WEST_COORDINATES.lat],
+      center: [coordinates.lng, coordinates.lat],
       zoom: 13,
       language: "en-GB",
     })
@@ -76,7 +82,7 @@ export default function TrafficMap({ className = "" }: TrafficMapProps) {
         map.current = null
       }
     }
-  }, [startPoint, endPoint])
+  }, [startPoint, endPoint, cityCoordinates])
 
   const calculateRoute = async (start: [number, number], end: [number, number]) => {
     try {

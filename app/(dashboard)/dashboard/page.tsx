@@ -10,6 +10,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { useState, useEffect } from "react"
+import { useAuth } from "@/contexts/AuthContext"
+import { doc, getDoc } from "firebase/firestore"
+import { db } from "@/lib/firebase"
 
 // Types for the API response
 interface AirQualityData {
@@ -167,18 +170,25 @@ interface WaterLevelsData {
 }
 
 export default function DashboardPage() {
+  const { user } = useAuth()
   const [airQualityData, setAirQualityData] = useState<NormalizedAirQualityData | null>(null)
   const [trafficData, setTrafficData] = useState<TrafficData | null>(null)
   const [waterLevelsData, setWaterLevelsData] = useState<WaterLevelsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedCity, setSelectedCity] = useState({
-    name: "vasai-west",
-    lat: 19.40,
-    lon: 72.82
+    name: "",
+    lat: 0,
+    lon: 0
   })
   // Dynamic alerts based on real-time data
-  const [alerts, setAlerts] = useState([
+  const [alerts, setAlerts] = useState<{
+    id: number;
+    title: string;
+    message: string;
+    time: string;
+    level: "info" | "warning" | "critical";
+  }[]>([
   {
     id: 2,
     title: "Traffic Congestion",
@@ -194,6 +204,31 @@ export default function DashboardPage() {
     level: "info" as const,
   },
   ])
+
+  // Function to fetch user's location from Firestore
+  const fetchUserLocation = async () => {
+    if (!user) return null
+
+    try {
+      const userRef = doc(db, "users", user.uid)
+      const userDoc = await getDoc(userRef)
+      
+      if (userDoc.exists() && userDoc.data().location) {
+        const location = userDoc.data().location
+        if (location.city && location.coordinates) {
+          return {
+            name: location.city,
+            lat: location.coordinates.lat,
+            lon: location.coordinates.lng
+          }
+        }
+      }
+      return null
+    } catch (error) {
+      console.error("Error fetching user location:", error)
+      return null
+    }
+  }
 
   // Function to fetch city coordinates from Nominatim API
   const fetchCityCoordinates = async (city: string) => {
@@ -460,26 +495,34 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
-    const fetchDefaultData = async () => {
+    const initializeDashboard = async () => {
       try {
         setLoading(true)
         setError(null)
         
-        // Fetch data for default location (Vasai West)
-        await fetchAirData("vasai-west")
+        // First try to get user's location
+        const userLocation = await fetchUserLocation()
+        
+        if (userLocation) {
+          // Use user's location if available
+          await fetchAirData(userLocation.name)
+        } else {
+          // Fallback to default location (Vasai West)
+          await fetchAirData("vasai-west")
+        }
       } catch (error) {
-        console.error("Error fetching default data:", error)
+        console.error("Error initializing dashboard:", error)
         setError("Failed to fetch data")
       } finally {
         setLoading(false)
       }
     }
 
-    fetchDefaultData()
+    initializeDashboard()
     // Refresh data every 5 minutes
     const interval = setInterval(() => fetchAirData(selectedCity.name), 5 * 60 * 1000)
     return () => clearInterval(interval)
-  }, [])
+  }, [user]) // Add user as dependency
 
   // Update alerts when any data changes
   useEffect(() => {
@@ -536,7 +579,7 @@ export default function DashboardPage() {
           >
             <Badge className="mb-4 bg-neon-blue/20 text-neon-blue">Smart City Dashboard</Badge>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-gradient">
-              Making Cities Smarter with Real-Time Data
+              {selectedCity.name ? `${selectedCity.name} City Dashboard` : "Smart City Dashboard"}
             </h1>
             <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
               Monitor air quality, traffic, and sea levels in real-time. UrbanPulse provides city
@@ -587,7 +630,7 @@ export default function DashboardPage() {
               transition={{ duration: 0.3, delay: 0.2 }}
             >
               <StatCard
-                title="Traffic Congestion"
+                title={`Traffic Congestion - ${selectedCity.name}`}
                 value={trafficData ? trafficData.congestionLevel : "Loading..."}
                 icon={<Car className="h-5 w-5 text-neon-orange" />}
                 trend={{ value: trafficData ? trafficData.delay : 0, isPositive: false }}
@@ -608,7 +651,7 @@ export default function DashboardPage() {
               transition={{ duration: 0.3, delay: 0.3 }}
             >
               <StatCard
-                title="Sea Levels"
+                title={`Sea Levels - ${selectedCity.name}`}
                 value={waterLevelsData ? `${(waterLevelsData.capacity - 100).toFixed(1)}% ${waterLevelsData.capacity > 100 ? 'Above' : 'Below'} Normal` : "Loading..."}
                 icon={<Droplets className="h-5 w-5 text-neon-blue" />}
                 trend={{ value: 2, isPositive: waterLevelsData ? waterLevelsData.capacity > 100 : true }}

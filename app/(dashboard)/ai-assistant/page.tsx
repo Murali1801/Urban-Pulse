@@ -560,9 +560,9 @@ export default function AIAssistantPage() {
                           )}
                         </Label>
                       </div>
-                      <Badge className="bg-neon-blue/20 text-neon-blue">
-                        <Bot className="h-3 w-3 mr-1" /> AI Powered
-                      </Badge>
+                    <Badge className="bg-neon-blue/20 text-neon-blue">
+                      <Bot className="h-3 w-3 mr-1" /> AI Powered
+                    </Badge>
                     </div>
                   </div>
                 </CardHeader>

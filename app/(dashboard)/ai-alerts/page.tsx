@@ -532,6 +532,19 @@ export default function AIAlertsPage() {
                       >
                         {predictionLoading ? "Processing..." : "Predict PM2.5"}
                       </Button>
+                      <Button 
+                        type="button" 
+                        className="bg-gradient-to-r from-purple-500 to-pink-500"
+                        onClick={() => {
+                          const hasAnomaly = Math.random() > 0.5;
+                          if (hasAnomaly) {
+                            setShowAnomalyAlert(true);
+                            setActiveAnomalies((prev) => prev + 1);
+                          }
+                        }}
+                      >
+                        Detect Anomaly
+                      </Button>
                     </DialogFooter>
                   </form>
                 </DialogContent>
