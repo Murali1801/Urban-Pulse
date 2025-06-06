@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "install-deps": "npm install --legacy-peer-deps",
-    "build-app": "NODE_ENV=production npm run install-deps && npm run build"
+    "build-app": "npm run install-deps && NODE_ENV=production next build"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",
