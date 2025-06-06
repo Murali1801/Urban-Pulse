@@ -18,18 +18,17 @@ const nextConfig = {
     domains: ['firebasestorage.googleapis.com'],
   },
   experimental: {
-    webpackBuildWorker: true,
-    parallelServerBuildTraces: true,
-    parallelServerCompiles: true,
     serverActions: true,
   },
   output: 'standalone',
-  // Disable static optimization for pages that use client-side features
-  staticPageGenerationTimeout: 120,
-  // Configure which pages should be statically generated
-  unstable_runtimeJS: true,
-  // Disable automatic static optimization for all pages
-  staticPageGenerationTimeout: 0,
+  // Configure path aliases
+  webpack: (config) => {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': '.',
+    }
+    return config
+  },
 }
 
 mergeConfig(nextConfig, userConfig)
