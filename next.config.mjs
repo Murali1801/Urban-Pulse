@@ -15,12 +15,21 @@ const nextConfig = {
   },
   images: {
     unoptimized: true,
+    domains: ['firebasestorage.googleapis.com'],
   },
   experimental: {
     webpackBuildWorker: true,
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
+    serverActions: true,
   },
+  output: 'standalone',
+  // Disable static optimization for pages that use client-side features
+  staticPageGenerationTimeout: 120,
+  // Configure which pages should be statically generated
+  unstable_runtimeJS: true,
+  // Disable automatic static optimization for all pages
+  staticPageGenerationTimeout: 0,
 }
 
 mergeConfig(nextConfig, userConfig)
