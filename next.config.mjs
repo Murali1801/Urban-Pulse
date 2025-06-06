@@ -1,26 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
+  reactStrictMode: true,
+  swcMinify: true,
   images: {
-    unoptimized: true,
-    domains: ['firebasestorage.googleapis.com'],
+    domains: ['api.tomtom.com'],
   },
-  experimental: {
-    serverActions: true,
-  },
-  output: 'standalone',
-  // Configure path aliases
   webpack: (config) => {
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      '@': '.',
-    }
-    return config
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+    };
+    return config;
   },
 }
 
