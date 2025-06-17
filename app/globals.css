@@ -1,0 +1,81 @@
+@import '@tomtom-international/web-sdk-maps/dist/maps.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222 47% 5%;
+    --foreground: 210 40% 98%;
+
+    --card: 222 47% 8%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 47% 8%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 100% 50%;
+    --primary-foreground: 222 47% 5%;
+
+    --secondary: 30 100% 50%;
+    --secondary-foreground: 222 47% 5%;
+
+    --muted: 217 33% 15%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 217 33% 15%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217 33% 15%;
+    --input: 217 33% 15%;
+    --ring: 210 100% 50%;
+
+    --radius: 0.5rem;
+  }
+}
+
+@layer components {
+  .glassmorphism {
+    @apply bg-panel-bg backdrop-blur-md border border-opacity-20 border-white shadow-lg;
+  }
+
+  .card-glow {
+    @apply relative overflow-hidden;
+  }
+
+  .card-glow::before {
+    content: "";
+    @apply absolute inset-0 bg-gradient-to-r from-neon-blue to-neon-orange opacity-30 blur-xl;
+    transform: translate(-50%, -50%);
+    z-index: -1;
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-neon-blue to-neon-orange;
+  }
+
+  .neon-border {
+    @apply border border-neon-blue shadow-[0_0_10px_rgba(0,163,255,0.5)];
+  }
+
+  .orange-glow {
+    @apply shadow-[0_0_15px_rgba(255,122,0,0.5)];
+  }
+
+  .blue-glow {
+    @apply shadow-[0_0_15px_rgba(0,163,255,0.5)];
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-dark-bg text-foreground;
+  }
+}
+
